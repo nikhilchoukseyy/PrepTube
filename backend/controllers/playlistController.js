@@ -1,6 +1,9 @@
 import axios from "axios";
 import Playlist from "../models/Playlist.js";
 import dotenv from "dotenv";
+import crypto from 'crypto'
+import ChatMessage from "../models/ChatMessage.js";
+
 
 dotenv.config();
 
@@ -223,3 +226,80 @@ export const unmarkVideoCompleted = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const generateInviteToken = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { playlistId } = req.params;
+    const playlist = await Playlist.findOne({ playlistId });
+    if (!playlist) return res.status(404).json({ message: "Playlist not found" });
+
+    if (!playlist.owner.equals(userId)) {
+      return res.status(403).json({ message: "Only the owner can generate invites" });
+    }
+
+    const token = crypto.randomBytes(16).toString("hex");
+
+
+    playlist.inviteTokens.push({ token });
+    await playlist.save();
+
+    const inviteLink = `${process.env.FRONTEND_URL}/join/${token}`;
+
+    res.status(200).json({
+      message: "Invite link generated",
+      inviteLink,
+      token,
+    });
+  } catch (error) {
+    console.error("Error generating invite token:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
+export const joinPlaylist = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { token } = req.body;
+
+    const playlist = await Playlist.findOne({ "inviteTokens.token": token });
+
+    if (!playlist) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    if (playlist.members.includes(userId)) {
+      return res.status(400).json({ message: "Already a member" });
+    }
+
+    playlist.members.push(userId);
+
+    playlist.inviteTokens = playlist.inviteTokens.filter(t => t.token !== token);
+
+    await playlist.save();
+
+    res.status(200).json({
+      message: "Joined playlist successfully",
+      playlistId: playlist.playlistId,
+      title: playlist.title,
+    });
+  } catch (error) {
+    console.error("Error joining playlist:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
+export const getChatMessage = async (req, res) => {
+  const { playlistId } = req.params;
+
+  const playlist = await Playlist.findOne(playlistId);
+  if (!playlist) {
+    return res.status(404).json({ message: "Playlist  not found" });
+  }
+
+  const chats = await ChatMessage.find({ playlist: playlistId })
+    .populate("sender", "name email")
+    .sort({ createdAt: 1 });
+
+  res.status(200).json({ chats });
+}
