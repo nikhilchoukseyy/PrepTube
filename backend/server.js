@@ -4,7 +4,7 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from './routes/authRoutes.js'
-
+import playlistRoutes from "./routes/playlistRoutes.js";
 
 dotenv.config();
 console.log("PORT from .env:", process.env.PORT);
@@ -14,7 +14,8 @@ const app = express();
 app.use(cors()); 
 app.use(express.json()); 
 app.use("/api/users", userRoutes);
-app.use("/api/users", authRoutes)
+app.use("/api/users", authRoutes); 
+app.use("/api/playlists", playlistRoutes);
 
 
 app.get("/", (req, res) => {
