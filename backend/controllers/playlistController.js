@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import crypto from 'crypto'
 import ChatMessage from "../models/ChatMessage.js";
 
-
 dotenv.config();
 
 export const createPlaylist = async (req, res) => {
@@ -240,7 +239,6 @@ export const generateInviteToken = async (req, res) => {
 
     const token = crypto.randomBytes(16).toString("hex");
 
-
     playlist.inviteTokens.push({ token });
     await playlist.save();
 
@@ -273,7 +271,6 @@ export const joinPlaylist = async (req, res) => {
     }
 
     playlist.members.push(userId);
-
     playlist.inviteTokens = playlist.inviteTokens.filter(t => t.token !== token);
 
     await playlist.save();
@@ -290,16 +287,23 @@ export const joinPlaylist = async (req, res) => {
 }
 
 export const getChatMessage = async (req, res) => {
-  const { playlistId } = req.params;
+  try {
+    const { playlistId } = req.params;
 
-  const playlist = await Playlist.findOne(playlistId);
-  if (!playlist) {
-    return res.status(404).json({ message: "Playlist  not found" });
+   
+    const playlist = await Playlist.findOne({ playlistId });
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+
+   
+    const chats = await ChatMessage.find({ playlist: playlist._id })
+      .populate("sender", "name email")
+      .sort({ createdAt: 1 });
+
+    res.status(200).json({ chats });
+  } catch (error) {
+    console.error("getChatMessage error:", error.message);
+    res.status(500).json({ message: "Server error" });
   }
-
-  const chats = await ChatMessage.find({ playlist: playlistId })
-    .populate("sender", "name email")
-    .sort({ createdAt: 1 });
-
-  res.status(200).json({ chats });
-}
+};

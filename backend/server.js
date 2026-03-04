@@ -9,15 +9,23 @@ import http from "http";
 import setupSocket from "./socket/index.js";;
 
 dotenv.config();
-console.log("PORT from .env:", process.env.PORT);
+
+connectDB();
+console.log("MongoDB connecting...")
 
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors()); 
-app.use(express.json()); 
+setupSocket(server);
+
+app.use(cors({
+  origin: "http://localhost:5173", 
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+app.use(express.json());
 app.use("/api/users", userRoutes);
-app.use("/api/users", authRoutes); 
+app.use("/api/users", authRoutes);
 app.use("/api/playlists", playlistRoutes);
 
 

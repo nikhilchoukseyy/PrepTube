@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For Kareena | From Shahid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle, #1a0005 0%, #000 100%); font-family: 'serif'; }
+        #canvas-container { position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-layer { position: relative; z-index: 10; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
+        #no-btn { transition: all 0.2s ease; position: absolute; }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen text-white">
+
+    <div id="canvas-container"></div>
+
+    <div id="intro-card" class="ui-layer glass p-12 text-center max-w-md mx-4 transition-all duration-1000">
+        <h1 class="text-5xl font-extrabold mb-4 bg-gradient-to-r from-rose-400 to-pink-600 bg-clip-text text-transparent italic">Hey Kareena,</h1>
+        <p class="text-gray-300 mb-8 leading-relaxed">I've been holding onto something special... want to see?</p>
+        <button onclick="startExperience()" class="bg-rose-600 hover:bg-rose-500 text-white px-10 py-3 rounded-full font-bold tracking-widest transition-transform hover:scale-110 shadow-lg shadow-rose-900/50">
+            OPEN MY HEART
+        </button>
+    </div>
+
+    <div id="proposal-card" class="ui-layer glass p-12 text-center max-w-lg mx-4 hidden opacity-0 transition-all duration-1000">
+        <h2 class="text-3xl font-bold mb-4">Will you go on a Valentine's Date with me?</h2>
+        <p class="text-rose-400 mb-8 font-medium">It would mean the world, Kareena.</p>
+        
+        <div class="flex justify-center items-center gap-6 h-12">
+            <button onclick="sayYes()" class="bg-green-500 hover:bg-green-400 text-white px-10 py-2 rounded-lg font-bold text-xl shadow-lg shadow-green-900/40">
+                YES!
+            </button>
+            <button id="no-btn" onmouseover="moveNo()" onclick="moveNo()" class="bg-gray-700 text-gray-300 px-8 py-2 rounded-lg font-bold">
+                No
+            </button>
+        </div>
+        <p class="mt-12 text-xs uppercase tracking-[0.2em] text-gray-500">- Shahid Kapoor -</p>
+    </div>
+
+    <script>
+        let scene, camera, renderer, heart;
+
+        function init3D() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Create Heart Shape
+            const x = 0, y = 0;
+            const heartShape = new THREE.Shape();
+            heartShape.moveTo( x + 5, y + 5 );
+            heartShape.bezierCurveTo( x + 5, y + 5, x + 4, y, x, y );
+            heartShape.bezierCurveTo( x - 6, y, x - 6, y + 7,x - 6, y + 7 );
+            heartShape.bezierCurveTo( x - 6, y + 11, x - 3, y + 15.4, x + 5, y + 19 );
+            heartShape.bezierCurveTo( x + 12, y + 15.4, x + 16, y + 11, x + 16, y + 7 );
+            heartShape.bezierCurveTo( x + 16, y + 7, x + 16, y, x + 10, y );
+            heartShape.bezierCurveTo( x + 7, y, x + 5, y + 5, x + 5, y + 5 );
+
+            const geometry = new THREE.ExtrudeGeometry(heartShape, { depth: 2, bevelEnabled: true, bevelSize: 1, bevelThickness: 1 });
+            const material = new THREE.MeshPhongMaterial({ color: 0xff1e56, shininess: 150 });
+            heart = new THREE.Mesh(geometry, material);
+            heart.scale.set(0.4, 0.4, 0.4);
+            heart.rotation.z = Math.PI;
+            scene.add(heart);
+
+            const light = new THREE.PointLight(0xffffff, 1.5, 100);
+            light.position.set(0, 5, 10);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0x333333));
+
+            camera.position.z = 25;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(heart) {
+                heart.rotation.y += 0.015;
+                heart.position.y = Math.sin(Date.now() * 0.002) * 0.5;
+            }
+            renderer.render(scene, camera);
+        }
+
+        function startExperience() {
+            document.getElementById('intro-card').classList.add('opacity-0', 'scale-90');
+            setTimeout(() => {
+                document.getElementById('intro-card').classList.add('hidden');
+                const prop = document.getElementById('proposal-card');
+                prop.classList.remove('hidden');
+                setTimeout(() => prop.classList.remove('opacity-0'), 50);
+            }, 1000);
+        }
+
+        function moveNo() {
+            const btn = document.getElementById('no-btn');
+            const x = Math.random() * (window.innerWidth - 150);
+            const y = Math.random() * (window.innerHeight - 50);
+            btn.style.left = `${x}px`;
+            btn.style.top = `${y}px`;
+        }
+
+        function sayYes() {
+            document.getElementById('proposal-card').innerHTML = `
+                <h1 class="text-4xl font-bold text-green-400 mb-4">YES! ❤️</h1>
+                <p class="text-xl">It's a date! See you on the 14th, Kareena.</p>
+                <div class="mt-6 text-sm italic text-gray-400 font-serif font-light">"When I'm with you, I'm home."</div>
+            `;
+            heart.material.color.setHex(0x00ff88); // Turn heart green
+            heart.scale.set(0.8, 0.8, 0.8); // Make it huge
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init3D();
+        animate();
+    </script>
+</body>
+</html>

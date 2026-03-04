@@ -1,6 +1,8 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import ChatMessage from "../models/ChatMessage.js";
+// ✅ FIX: Import Playlist so we can look up its MongoDB _id
+import Playlist from "../models/Playlist.js";
 
 export default function setupSocket(server) {
   const io = new Server(server, {
@@ -17,7 +19,7 @@ export default function setupSocket(server) {
     } catch (err) {
       next(new Error("Authentication error"));
     }
-  })
+  });
 
   io.on("connection", (socket) => {
     console.log("⚡ User connected:", socket.user.id);
@@ -29,8 +31,15 @@ export default function setupSocket(server) {
 
     socket.on("chatMessage", async ({ playlistId, text }) => {
       try {
+        
+        const playlist = await Playlist.findOne({ playlistId });
+        if (!playlist) {
+          return socket.emit("error", { message: "Playlist not found" });
+        }
+
+        
         const chat = await ChatMessage.create({
-          playlist: playlistId,
+          playlist: playlist._id,
           sender: socket.user.id,
           message: text,
         });
