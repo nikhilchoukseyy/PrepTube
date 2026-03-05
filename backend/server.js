@@ -5,8 +5,9 @@ import connectDB from "./config/db.js";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from './routes/authRoutes.js'
 import playlistRoutes from "./routes/playlistRoutes.js";
+import passport from "./config/passport.js";
 import http from "http";
-import setupSocket from "./socket/index.js";;
+import setupSocket from "./socket/index.js";
 
 dotenv.config();
 
@@ -18,16 +19,18 @@ const server = http.createServer(app);
 
 setupSocket(server);
 
+
 app.use(cors({
-  origin: "http://localhost:5173", 
+  origin: `http://localhost:5173`, 
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
 app.use(express.json());
-app.use("/api/users", userRoutes);
-app.use("/api/users", authRoutes);
-app.use("/api/playlists", playlistRoutes);
+app.use(passport.initialize());
 
+app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/playlists", playlistRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to PrepTube");

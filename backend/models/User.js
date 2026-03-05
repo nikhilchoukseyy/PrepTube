@@ -4,7 +4,9 @@ import bcrypt from 'bcryptjs'
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String },
+  googleId: { type: String },
+  avatar: { type: String },
   role: { type: String, default: "user" },
   playlists: [{ type: mongoose.Schema.Types.ObjectId, ref: "Playlist" }],
 },

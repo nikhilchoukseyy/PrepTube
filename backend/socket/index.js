@@ -1,7 +1,6 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import ChatMessage from "../models/ChatMessage.js";
-// ✅ FIX: Import Playlist so we can look up its MongoDB _id
 import Playlist from "../models/Playlist.js";
 
 export default function setupSocket(server) {

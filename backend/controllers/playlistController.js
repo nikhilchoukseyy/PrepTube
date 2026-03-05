@@ -167,7 +167,7 @@ function computePlaylistStats(playlist) {
 
 export const getPlaylistDetail = async (req, res) => {
   try {
-    const playlistId = req.params.id;
+    const {playlistId} = req.params;
     const playlist = await Playlist.findOne({ playlistId }).populate('owner members progress.user', 'name email');
 
     if (!playlist) return res.status(404).json({ message: "Playlist not found" });
