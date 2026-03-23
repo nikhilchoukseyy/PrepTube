@@ -6,6 +6,37 @@ import Navbar from '../components/Navbar';
 
 const API_URL = "http://localhost:5000/api";
 
+const normalizeInviteToken = (value) => value.trim();
+
+const ThumbnailImage = ({ videoId, fallbackSrc, alt, className }) => {
+  const sources = [
+    videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : '',
+    videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '',
+    fallbackSrc || '',
+  ].filter(Boolean);
+
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  useEffect(() => {
+    setSrcIndex(0);
+  }, [videoId, fallbackSrc]);
+
+  if (sources.length === 0) return null;
+
+  return (
+    <img
+      src={sources[srcIndex]}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (srcIndex < sources.length - 1) {
+          setSrcIndex((prev) => prev + 1);
+        }
+      }}
+    />
+  );
+};
+
 const HomePage = () => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +46,9 @@ const HomePage = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [joinToken, setJoinToken] = useState('');
   const [joining, setJoining] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
   const navigate = useNavigate();
+  const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -49,6 +82,7 @@ const HomePage = () => {
         { playlistUrl },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
       setPlaylistUrl('');
       setFormOpen(false);
       fetchPlaylists();
@@ -60,13 +94,15 @@ const HomePage = () => {
   };
 
   const handleJoinPlaylist = async () => {
-    if (!joinToken.trim()) return;
+    const normalizedToken = normalizeInviteToken(joinToken);
+    if (!normalizedToken) return;
     setJoining(true);
+    setError('');
     try {
       const token = sessionStorage.getItem('token');
       await axios.post(
         `${API_URL}/playlists/join`,
-        { token: joinToken },
+        { token: normalizedToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setJoinToken('');
@@ -75,6 +111,30 @@ const HomePage = () => {
       setError(err.response?.data?.message || 'Failed to join playlist');
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleDeletePlaylist = async (e, playlistId) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = window.confirm('Delete this playlist for everyone?');
+    if (!confirmed) return;
+
+    setDeletingId(playlistId);
+    setError('');
+
+    try {
+      const token = sessionStorage.getItem('token');
+      await axios.delete(`${API_URL}/playlists/${playlistId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setPlaylists((prev) => prev.filter((playlist) => playlist.playlistId !== playlistId));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete playlist');
+    } finally {
+      setDeletingId('');
     }
   };
 
@@ -229,23 +289,29 @@ const HomePage = () => {
           <>
             <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               <AnimatePresence>
-                {playlists.map((playlist, i) => (
-                  <motion.div
+                {playlists.map((playlist, i) => {
+                  const ownerId = playlist.owner?._id || playlist.owner;
+                  const isOwner = String(ownerId) === currentUser?.id;
+
+                  return (
+                    <motion.div
                     key={playlist._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: i * 0.06, duration: 0.35 }}
                     whileHover={{ y: -4 }}
+                    className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/[0.14] rounded-2xl p-5 transition-all duration-250 group"
                   >
                     <Link
                       to={`/video/${playlist.playlistId}`}
-                      className="block bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/[0.14] rounded-2xl p-5 transition-all duration-250 group"
+                      className="block"
                     >
                       <div className="w-full aspect-video rounded-xl bg-gradient-to-br from-red-900/30 to-orange-900/20 mb-4 flex items-center justify-center overflow-hidden border border-white/[0.05]">
                         {playlist.videos?.[0]?.thumbnail ? (
-                          <img
-                            src={playlist.videos[0].thumbnail}
+                          <ThumbnailImage
+                            videoId={playlist.videos[0].videoId}
+                            fallbackSrc={playlist.videos[0].thumbnail}
                             alt={playlist.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
@@ -256,21 +322,29 @@ const HomePage = () => {
                       <h3 className="text-white font-semibold text-sm leading-snug mb-2 line-clamp-2 group-hover:text-white transition-colors">
                         {playlist.title}
                       </h3>
-                      <div className="flex items-center justify-between text-xs text-white/30 mt-auto">
+                      <div className="flex items-center gap-4 text-xs text-white/30 mt-auto">
                         <span>{playlist.videos?.length || 0} videos</span>
                         <span className="flex items-center gap-1">
                           <span className="w-3.5 h-3.5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">👤</span>
                           {(playlist.members?.length || 0) + 1} members
                         </span>
-                        <span
-                      
-                        className="text-red-500 hover:text-red-400 cursor-pointer transition-colors">
-                          Delete playlist
-                        </span>
                       </div>
                     </Link>
-                  </motion.div>
-                ))}
+                      {isOwner && (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeletePlaylist(e, playlist.playlistId)}
+                            disabled={deletingId === playlist.playlistId}
+                            className="text-xs text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === playlist.playlistId ? 'Deleting...' : 'Delete playlist'}
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </motion.div>
 
@@ -279,7 +353,7 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="mt-10 max-w-md"
+              className="mt-10 max-w-md mx-auto"
             >
               <JoinRoomCard
                 joinToken={joinToken}
@@ -297,7 +371,7 @@ const HomePage = () => {
 
 /* ─── Join Room Card ─────────────────────────────────────────────────────── */
 const JoinRoomCard = ({ joinToken, setJoinToken, handleJoinPlaylist, joining }) => (
-  <div className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6">
+  <div className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 ">
     <div className="flex items-center gap-3 mb-1">
       <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-base">
         🔗

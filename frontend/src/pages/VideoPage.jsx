@@ -7,6 +7,37 @@ import Navbar from '../components/Navbar';
 const API_URL = "http://localhost:5000/api";
 const SOCKET_URL = "http://localhost:5000";
 
+const normalizeInviteToken = (value) => value.trim();
+
+const ThumbnailImage = ({ videoId, fallbackSrc, alt, className }) => {
+  const sources = [
+    videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : '',
+    videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '',
+    fallbackSrc || '',
+  ].filter(Boolean);
+
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  useEffect(() => {
+    setSrcIndex(0);
+  }, [videoId, fallbackSrc]);
+
+  if (sources.length === 0) return null;
+
+  return (
+    <img
+      src={sources[srcIndex]}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (srcIndex < sources.length - 1) {
+          setSrcIndex((prev) => prev + 1);
+        }
+      }}
+    />
+  );
+};
+
 const VideoPage = () => {
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,22 +140,30 @@ const VideoPage = () => {
         `${API_URL}/playlists/${id}/invite`, {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
       setInviteLink(res.data.inviteLink);
+      
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to generate invite');
     }
   };
 
   const handleJoinPlaylist = async () => {
-    if (!joinToken.trim()) return;
+    const normalizedToken = normalizeInviteToken(joinToken);
+    if (!normalizedToken) return;
+    setError('');
     try {
       const token = sessionStorage.getItem('token');
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/playlists/join`,
-        { token: joinToken },
+        { token: normalizedToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setJoinToken('');
+      if (res.data?.playlistId) {
+        navigate(`/video/${res.data.playlistId}`);
+        return;
+      }
       fetchPlaylist();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to join playlist');
@@ -268,8 +307,9 @@ const VideoPage = () => {
                 >
                   {/* Thumbnail */}
                   <div className="relative shrink-0">
-                    <img
-                      src={video.thumbnail}
+                    <ThumbnailImage
+                      videoId={video.videoId}
+                      fallbackSrc={video.thumbnail}
                       alt={video.title}
                       className="w-24 h-14 object-cover rounded-lg"
                     />

@@ -6,6 +6,7 @@ import {
   getPlaylistDetail,
   unmarkVideoCompleted,
   generateInviteToken,
+  deletePlaylist,
   joinPlaylist,
   getChatMessage
 } from "../controllers/playlistController.js";
@@ -17,6 +18,7 @@ router.post("/create", protect, createPlaylist);
 router.get("/my-playlists", protect, getUserPlaylist);
 router.post("/mark", protect, markVideoCompleted);
 router.get("/:playlistId/details", protect, getPlaylistDetail);
+router.delete("/:playlistId", protect, deletePlaylist);
 router.post("/unmark", protect, unmarkVideoCompleted);
 router.post("/:playlistId/invite", protect, generateInviteToken);
 router.post("/join", protect, joinPlaylist);

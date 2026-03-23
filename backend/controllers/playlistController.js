@@ -6,6 +6,27 @@ import ChatMessage from "../models/ChatMessage.js";
 
 dotenv.config();
 
+function extractInviteToken(rawValue) {
+  if (!rawValue || typeof rawValue !== "string") return "";
+
+  const trimmedValue = rawValue.trim();
+  if (!trimmedValue) return "";
+
+  try {
+    const parsedUrl = new URL(trimmedValue);
+    const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+    const joinIndex = pathSegments.findIndex((segment) => segment === "join");
+
+    if (joinIndex !== -1 && pathSegments[joinIndex + 1]) {
+      return pathSegments[joinIndex + 1];
+    }
+
+    return parsedUrl.searchParams.get("token") || trimmedValue;
+  } catch {
+    return trimmedValue.split("/").filter(Boolean).pop() || trimmedValue;
+  }
+}
+
 export const createPlaylist = async (req, res) => {
   try {
     const { playlistUrl } = req.body;
@@ -19,6 +40,19 @@ export const createPlaylist = async (req, res) => {
     }
 
     const apiKey = process.env.YOUTUBE_API_KEY;
+    const playlistMetaResponse = await axios.get("https://www.googleapis.com/youtube/v3/playlists", {
+      params: {
+        part: "snippet",
+        id: playlistId,
+        key: apiKey,
+      },
+    });
+
+    const playlistTitle = playlistMetaResponse.data.items?.[0]?.snippet?.title;
+    if (!playlistTitle) {
+      return res.status(404).json({ message: "Playlist not found on YouTube" });
+    }
+
     const baseUrl = "https://www.googleapis.com/youtube/v3/playlistItems";
     let videos = [];
     let nextPageToken = "";
@@ -37,7 +71,12 @@ export const createPlaylist = async (req, res) => {
       const items = response.data.items.map((item) => ({
         title: item.snippet.title,
         videoId: item.snippet.resourceId.videoId,
-        thumbnail: item.snippet.thumbnails?.default?.url,
+        thumbnail: (
+          item.snippet.thumbnails?.maxres?.url ||
+          item.snippet.thumbnails?.high?.url ||
+          item.snippet.thumbnails?.medium?.url ||
+          item.snippet.thumbnails?.default?.url
+        ),
       }));
 
       videos.push(...items);
@@ -73,7 +112,7 @@ export const createPlaylist = async (req, res) => {
 
     const newPlaylist = new Playlist({
       playlistId,
-      title: videos[0]?.title || "Untitled Playlist",
+      title: playlistTitle,
       videos,
       owner: userId,
     });
@@ -104,7 +143,9 @@ function isoDurationToSeconds(isoDuration) {
 export const getUserPlaylist = async (req, res) => {
   try {
     const userId = req.user._id;
-    const playlists = await Playlist.find({ owner: userId })
+    const playlists = await Playlist.find({
+      $or: [{ owner: userId }, { members: userId }]
+    })
     res.status(200).json({ playlists })
   } catch (error) {
     console.error("Error fetching playlists:", error.message);
@@ -167,7 +208,7 @@ function computePlaylistStats(playlist) {
 
 export const getPlaylistDetail = async (req, res) => {
   try {
-    const {playlistId} = req.params;
+    const { playlistId } = req.params;
     const playlist = await Playlist.findOne({ playlistId }).populate('owner members progress.user', 'name email');
 
     if (!playlist) return res.status(404).json({ message: "Playlist not found" });
@@ -255,10 +296,37 @@ export const generateInviteToken = async (req, res) => {
   }
 }
 
+export const deletePlaylist = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { playlistId } = req.params;
+
+    const playlist = await Playlist.findOne({ playlistId });
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+
+    if (!playlist.owner.equals(userId)) {
+      return res.status(403).json({ message: "Only the owner can delete this playlist" });
+    }
+
+    await Playlist.deleteOne({ _id: playlist._id });
+
+    res.status(200).json({ message: "Playlist deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting playlist:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
 export const joinPlaylist = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { token } = req.body;
+    const token = extractInviteToken(req.body?.token);
+
+    if (!token) {
+      return res.status(400).json({ message: "Invite token is required" });
+    }
 
     const playlist = await Playlist.findOne({ "inviteTokens.token": token });
 
@@ -266,7 +334,7 @@ export const joinPlaylist = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired token" });
     }
 
-    if (playlist.members.includes(userId)) {
+    if (playlist.owner.equals(userId) || playlist.members.some(memberId => memberId.equals(userId))) {
       return res.status(400).json({ message: "Already a member" });
     }
 
@@ -290,13 +358,13 @@ export const getChatMessage = async (req, res) => {
   try {
     const { playlistId } = req.params;
 
-   
+
     const playlist = await Playlist.findOne({ playlistId });
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
 
-   
+
     const chats = await ChatMessage.find({ playlist: playlist._id })
       .populate("sender", "name email")
       .sort({ createdAt: 1 });
