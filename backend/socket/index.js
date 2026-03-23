@@ -4,8 +4,16 @@ import ChatMessage from "../models/ChatMessage.js";
 import Playlist from "../models/Playlist.js";
 
 export default function setupSocket(server) {
+  const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   const io = new Server(server, {
-    cors: { origin: "*" }
+    cors: {
+      origin: allowedOrigins,
+      credentials: true
+    }
   });
 
   io.use((socket, next) => {
