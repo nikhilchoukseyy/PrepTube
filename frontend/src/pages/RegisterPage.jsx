@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_ROOT = API_URL.replace(/\/api\/?$/, '');
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -98,7 +99,7 @@ const RegisterPage = () => {
 
           {/* Google Sign In Button */}
           <a
-            href="http://localhost:5000/api/auth/google"
+            href={`${API_ROOT}/api/auth/google`}
             className="w-full flex items-center justify-center gap-3 py-3 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-100 transition-all mb-6 shadow-lg"
           >
             <img src="https://www.google.com/favicon.ico" className="w-5 h-5" />
