@@ -5,6 +5,7 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_ROOT = API_URL.replace(/\/api\/?$/, '');
+const GOOGLE_MAIL_REGEX = /^[a-zA-Z0-9._%+-]+@(?:gmail\.com|googlemail\.com)$/i;
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -19,12 +20,22 @@ const RegisterPage = () => {
     e.preventDefault();
     setError('');
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (!GOOGLE_MAIL_REGEX.test(normalizedEmail)) {
+      setError('Only Gmail accounts are allowed here. Use Continue with Google to verify your Google account.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/users/register`, { name, email, password });
+      const res = await axios.post(`${API_URL}/users/register`, {
+        name: name.trim(),
+        email: normalizedEmail,
+        password
+      });
       sessionStorage.setItem('token', res.data.token);
       sessionStorage.setItem('user', JSON.stringify({
         id: res.data._id,
@@ -129,11 +140,25 @@ const RegisterPage = () => {
                   value={field.value}
                   onChange={(e) => field.setter(e.target.value)}
                   placeholder={field.placeholder}
+                  autoComplete={
+                    field.label === 'Full Name'
+                      ? 'name'
+                      : field.label === 'Email'
+                        ? 'email'
+                        : field.label === 'Password'
+                          ? 'new-password'
+                          : 'new-password'
+                  }
+                  pattern={field.label === 'Email' ? '[A-Za-z0-9._%+-]+@(gmail\\.com|googlemail\\.com)' : undefined}
                   required
                   className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white rounded-xl text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
                 />
               </motion.div>
             ))}
+
+            <p className="text-xs text-white/35">
+              Email sign-up only supports Gmail addresses. For verified ownership, use Continue with Google.
+            </p>
 
             {/* Password strength hint */}
             {password.length > 0 && (

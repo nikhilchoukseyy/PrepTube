@@ -18,7 +18,10 @@ const LoginPage = () => {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/users/login`, { email, password });
+      const res = await axios.post(`${API_URL}/users/login`, {
+        email: email.trim().toLowerCase(),
+        password
+      });
       sessionStorage.setItem('token', res.data.token);
       sessionStorage.setItem('user', JSON.stringify({
         id: res.data._id,
@@ -67,8 +70,8 @@ const LoginPage = () => {
           transition={{ delay: 0.15, duration: 0.4 }}
           className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-8 shadow-2xl backdrop-blur-sm"
         >
-          <h1 className="text-2xl font-bold text-white mb-1">Sign in</h1>
-          <p className="text-white/40 text-sm mb-7">Enter your credentials to continue</p>
+          <h1 className="text-xl font-bold text-white mb-4 text-center">Register or login with google</h1>
+          {/* <p className="text-white/40 text-sm mb-7">Enter your credentials to continue</p> */}
 
           {/* Error */}
           <AnimatePresence>
@@ -94,66 +97,20 @@ const LoginPage = () => {
           </a>
 
           {/* Divider */}
-          <div className="flex items-center gap-4 mb-6">
+          {/* <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-white/[0.08]" />
             <span className="text-white/40 text-xs">Or continue with email</span>
             <div className="flex-1 h-px bg-white/[0.08]" />
-          </div>
+          </div> */}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-            <div>
-              <label className="block text-white/50 text-xs font-medium mb-2 uppercase tracking-wider">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white rounded-xl text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-              />
-            </div>
+          
 
-            {/* Password */}
-            <div>
-              <label className="block text-white/50 text-xs font-medium mb-2 uppercase tracking-wider">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white rounded-xl text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-              />
-            </div>
-
-            {/* Submit */}
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.02 }}
-              whileTap={{ scale: loading ? 1 : 0.98 }}
-              className="w-full py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-orange-500 text-white font-semibold rounded-xl text-sm shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 mt-2"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <motion.span
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full inline-block"
-                  />
-                  Signing in...
-                </span>
-              ) : 'Sign in'}
-            </motion.button>
-          </form>
-
-          <p className="text-white/30 text-sm text-center mt-6">
+          {/* <p className="text-white/30 text-sm text-center mt-6">
             Don't have an account?{' '}
             <Link to="/register" className="text-red-400 hover:text-red-300 font-medium transition-colors">
               Create one
             </Link>
-          </p>
+          </p> */}
         </motion.div>
       </motion.div>
     </div>
