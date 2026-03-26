@@ -198,9 +198,9 @@ const HomePage = () => {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="overflow-hidden"
             >
-              <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6">
+              <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6  md:flex-row gap-6">
                 <h2 className="text-base font-semibold text-white mb-4">Import YouTube Playlist</h2>
-                <form onSubmit={handleCreatePlaylist} className="flex gap-3">
+                <form onSubmit={handleCreatePlaylist} className="flex gap-3 flex-col md:flex-row">
                   <input
                     type="text"
                     value={playlistUrl}

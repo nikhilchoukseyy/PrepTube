@@ -240,7 +240,7 @@ const VideoPage = () => {
 
             {/* Video Info Bar */}
             {selectedVideo && (
-              <div className="mt-4 flex items-start justify-between gap-4">
+              <div className="mt-4 flex flex-col items-start justify-between gap-4">
                 <div className="flex-1">
                   <h1 className="text-xl font-bold leading-snug">{selectedVideo.title}</h1>
                   <p className="text-gray-400 text-sm mt-1">
@@ -480,7 +480,7 @@ const VideoPage = () => {
               <div className="bg-gray-800 rounded-xl p-5">
                 <h3 className="font-semibold mb-1">Join a Playlist</h3>
                 <p className="text-sm text-gray-400 mb-4">Enter an invite token to join someone else's playlist room.</p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-col md:flex-row">
                   <input
                     type="text"
                     value={joinToken}
