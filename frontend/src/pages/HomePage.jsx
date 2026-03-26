@@ -165,9 +165,9 @@ const HomePage = () => {
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center justify-between mb-10"
+          className="flex flex-col md:flex-row gap-4 items-center justify-between mb-10"
         >
-          <div>
+          <div className='text-center'>
             <h1 className="text-3xl font-black tracking-tight text-white">My Playlists</h1>
             <p className="text-white/30 text-sm mt-1">
               {playlists.length} playlist{playlists.length !== 1 ? 's' : ''} in your library
@@ -372,7 +372,7 @@ const HomePage = () => {
 /* ─── Join Room Card ─────────────────────────────────────────────────────── */
 const JoinRoomCard = ({ joinToken, setJoinToken, handleJoinPlaylist, joining }) => (
   <div className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 ">
-    <div className="flex items-center gap-3 mb-1">
+    <div className="flex items-center gap-3 mb-1 ">
       <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-base">
         🔗
       </div>
@@ -381,7 +381,7 @@ const JoinRoomCard = ({ joinToken, setJoinToken, handleJoinPlaylist, joining }) 
     <p className="text-white/25 text-xs mb-5 pl-11">
       Enter an invite token to join someone's playlist.
     </p>
-    <div className="flex gap-3">
+    <div className="flex gap-3 flex-col md:flex-row">
       <input
         type="text"
         value={joinToken}
