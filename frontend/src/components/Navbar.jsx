@@ -11,7 +11,7 @@ const Navbar = () => {
 
   // Re-check auth on every route change
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
   }, [location]);
 
@@ -23,8 +23,8 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setIsLoggedIn(false);
     navigate('/login');
   };
