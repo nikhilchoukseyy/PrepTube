@@ -456,9 +456,9 @@ const VideoPage = () => {
                   Generate Link
                 </button>
                 {inviteLink && (
-                  <div className="mt-3">
+                  <div className="mt-3 ">
                     <p className="text-xs text-gray-400 mb-1">Share this:</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col md:flex-row gap-2 items-start md:items-center">
                       <input
                         type="text"
                         value={inviteLink}
