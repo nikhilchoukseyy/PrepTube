@@ -54,7 +54,7 @@ const VideoPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
 
     fetchPlaylist();
@@ -91,7 +91,7 @@ const VideoPage = () => {
 
   const fetchPlaylist = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/playlists/${id}/details`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -108,7 +108,7 @@ const VideoPage = () => {
 
   const fetchChatMessages = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/playlists/${id}/chats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -120,7 +120,7 @@ const VideoPage = () => {
 
   const toggleComplete = async (videoId, isCompleted) => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const endpoint = isCompleted ? '/playlists/unmark' : '/playlists/mark';
       await axios.post(
         `${API_URL}${endpoint}`,
@@ -135,7 +135,7 @@ const VideoPage = () => {
 
   const handleGenerateInvite = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const res = await axios.post(
         `${API_URL}/playlists/${id}/invite`, {},
         { headers: { Authorization: `Bearer ${token}` } }
@@ -153,7 +153,7 @@ const VideoPage = () => {
     if (!normalizedToken) return;
     setError('');
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const res = await axios.post(
         `${API_URL}/playlists/join`,
         { token: normalizedToken },

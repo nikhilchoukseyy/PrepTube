@@ -13,8 +13,8 @@ const AuthCallback = () => {
     const id = params.get('id');
 
     if (token) {
-      sessionStorage.setItem('token', token);
-      sessionStorage.setItem('user', JSON.stringify({ id, name, email }));
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify({ id, name, email }));
       window.location.href = '/';
     } else {
       navigate('/login');

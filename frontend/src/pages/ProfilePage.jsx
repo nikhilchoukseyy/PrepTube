@@ -8,14 +8,14 @@ const ProfilePage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = sessionStorage.getItem('user');
+    const userData = localStorage.getItem('user');
     if (!userData) { navigate('/login'); return; }
     setUser(JSON.parse(userData));
   }, [navigate]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 

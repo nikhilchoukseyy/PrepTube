@@ -48,17 +48,17 @@ const HomePage = () => {
   const [joining, setJoining] = useState(false);
   const [deletingId, setDeletingId] = useState('');
   const navigate = useNavigate();
-  const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
     fetchPlaylists();
   }, [navigate]);
 
   const fetchPlaylists = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/playlists/my-playlists`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -76,7 +76,7 @@ const HomePage = () => {
     setCreating(true);
     setError('');
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await axios.post(
         `${API_URL}/playlists/create`,
         { playlistUrl },
@@ -99,7 +99,7 @@ const HomePage = () => {
     setJoining(true);
     setError('');
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await axios.post(
         `${API_URL}/playlists/join`,
         { token: normalizedToken },
@@ -125,7 +125,7 @@ const HomePage = () => {
     setError('');
 
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/playlists/${playlistId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

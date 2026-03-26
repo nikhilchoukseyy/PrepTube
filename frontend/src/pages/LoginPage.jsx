@@ -22,8 +22,8 @@ const LoginPage = () => {
         email: email.trim().toLowerCase(),
         password
       });
-      sessionStorage.setItem('token', res.data.token);
-      sessionStorage.setItem('user', JSON.stringify({
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify({
         id: res.data._id,
         name: res.data.name,
         email: res.data.email
