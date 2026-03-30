@@ -13,6 +13,14 @@ const userSchema = new mongoose.Schema(
     role: { type: String, default: "user" },
     plan: { type: String, enum: ["free", "premium"], default: "free" },
     playlists: [{ type: mongoose.Schema.Types.ObjectId, ref: "Playlist" }],
+    passwordResetToken: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

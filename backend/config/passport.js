@@ -2,7 +2,7 @@
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 import dotenv from "dotenv";
-import { buildAvatarUrl, generateUniqueUsername } from "../utils/userIdentity.js";
+import { buildAvatarUrl, generateUniqueUsername, isGeneratedAvatarUrl } from "../utils/userIdentity.js";
 
 dotenv.config();
 
@@ -26,7 +26,7 @@ passport.use(
               email: user.email || email,
             }, user._id);
           }
-          if (!user.avatar) {
+          if (!user.avatar || (googleAvatar && isGeneratedAvatarUrl(user.avatar))) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
           }
           await user.save();
@@ -42,7 +42,9 @@ passport.use(
               email,
             }, user._id);
           }
-          user.avatar = user.avatar || googleAvatar || buildAvatarUrl(user.username || user.name || email);
+          if (!user.avatar || (googleAvatar && isGeneratedAvatarUrl(user.avatar))) {
+            user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
+          }
           await user.save();
           return done(null, user);
         }

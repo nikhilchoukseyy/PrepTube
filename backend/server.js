@@ -9,6 +9,7 @@ import userRoutes from "./routes/userRoutes.js";
 import passport from "./config/passport.js";
 import setupSocket from "./socket/index.js";
 
+
 dotenv.config();
 connectDB();
 
@@ -38,6 +39,8 @@ app.use("/api/playlists", playlistRoutes);
 app.get("/", (req, res) => {
   res.send("Welcome to PrepTube API");
 });
+
+
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

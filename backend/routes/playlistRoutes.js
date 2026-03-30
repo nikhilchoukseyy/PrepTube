@@ -12,6 +12,7 @@ import {
   logPlaylistTime,
   markVideoCompleted,
   removeMember,
+  saveVideoNote,
   unmarkVideoCompleted,
   updatePlaylistVisibility,
   uploadChatMedia,
@@ -27,6 +28,7 @@ router.post("/mark", protect, markVideoCompleted);
 router.post("/unmark", protect, unmarkVideoCompleted);
 router.post("/join", protect, joinPlaylist);
 router.get("/:playlistId/details", protect, getPlaylistDetail);
+router.put("/:playlistId/videos/:videoId/note", protect, saveVideoNote);
 router.get("/:playlistId/chats", protect, getChatMessage);
 router.post("/:playlistId/invite", protect, generateInviteToken);
 router.post("/:playlistId/leave", protect, leavePlaylist);
@@ -37,4 +39,3 @@ router.post("/:playlistId/chat/upload", protect, uploadChatMedia);
 router.delete("/:playlistId", protect, deletePlaylist);
 
 export default router;
-

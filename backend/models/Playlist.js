@@ -19,6 +19,16 @@ const videoSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const videoNoteSchema = new mongoose.Schema(
+  {
+    videoId: { type: String, required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    content: { type: String, default: "", trim: true },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const progressSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -38,12 +48,25 @@ const playlistSchema = new mongoose.Schema(
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     isPublic: { type: Boolean, default: false },
+    topics: [{ type: String, trim: true, maxlength: 40 }],
     inviteToken: { type: String },
     videos: [videoSchema],
+    videoNotes: [videoNoteSchema],
     progress: [progressSchema],
   },
   { timestamps: true }
 );
+
+playlistSchema.path("videoNotes").validate(function validateUniqueVideoNotes(videoNotes = []) {
+  const noteKeys = videoNotes
+    .map((note) => {
+      const videoId = note?.videoId ? String(note.videoId) : "";
+      const userId = note?.user ? String(note.user) : "";
+      return videoId && userId ? `${videoId}:${userId}` : "";
+    })
+    .filter(Boolean);
+  return noteKeys.length === new Set(noteKeys).size;
+}, "Each user can only have one private note per playlist video.");
 
 const Playlist = mongoose.model("Playlist", playlistSchema);
 export default Playlist;

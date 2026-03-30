@@ -1,9 +1,11 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import { API_URL, authHeaders, clearStoredAuth, getStoredUser, getToken, requireAuthRedirect, updateStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
+import { prepareAvatarUpload } from "../utils/avatarUpload";
+import { IC } from "./Icons";
 
 const buildPresetAvatars = (seed) => [
   `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed || "PrepTube")}`,
@@ -19,18 +21,17 @@ const ProfilePage = () => {
   const [username, setUsername] = useState(storedUser?.username || "");
   const [avatar, setAvatar] = useState(storedUser?.avatar || "");
   const [status, setStatus] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     setPageMeta({ title: "Profile | PrepTube", description: "Manage your PrepTube profile, username, avatar, and learning plan." });
   }, []);
 
   useEffect(() => {
-    if (!getToken()) {
-      requireAuthRedirect(navigate, "/profile");
-      return;
-    }
-
+    if (!getToken()) { requireAuthRedirect(navigate, "/profile"); return; }
     const fetchProfile = async () => {
       try {
         const res = await axios.get(`${API_URL}/users/me`, { headers: authHeaders() });
@@ -43,9 +44,26 @@ const ProfilePage = () => {
         requireAuthRedirect(navigate, "/profile");
       }
     };
-
     fetchProfile();
   }, [navigate]);
+
+  const handleAvatarSelection = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setStatus("");
+    setAvatarUploading(true);
+    try {
+      const preparedAvatar = await prepareAvatarUpload(file);
+      setAvatar(preparedAvatar);
+    } catch (uploadError) {
+      setIsSuccess(false);
+      setStatus(uploadError.message || "Unable to process selected image.");
+    } finally {
+      setAvatarUploading(false);
+      event.target.value = "";
+    }
+  };
 
   const handleSave = async (event) => {
     event.preventDefault();
@@ -55,58 +73,160 @@ const ProfilePage = () => {
       const res = await axios.patch(`${API_URL}/users/profile`, { username, avatar }, { headers: authHeaders() });
       const updatedUser = updateStoredUser(res.data.user);
       setUser(updatedUser);
+      setAvatar(updatedUser.avatar || "");
+      setIsSuccess(true);
       setStatus("Profile updated successfully.");
     } catch (err) {
+      setIsSuccess(false);
       setStatus(err.response?.data?.message || "Unable to update profile.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleLogout = () => {
-    clearStoredAuth();
-    navigate("/");
+  const handleLogout = () => { clearStoredAuth(); navigate("/"); };
+  const handleResetAvatar = () => {
+    setAvatar("");
+    setStatus("");
   };
 
   const presetAvatars = buildPresetAvatars(username || user?.name || user?.email);
+  const planColor = user?.plan === "premium" ? "text-amber-300" : "text-white/50";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-[#080808] text-white">
       <Navbar />
-      <main className="max-w-4xl mx-auto px-6 py-12 grid lg:grid-cols-[0.75fr_1.25fr] gap-6">
-        <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-8 text-center">
-          {avatar ? <img src={avatar} alt={username || user?.name || "Profile"} className="w-28 h-28 rounded-full object-cover mx-auto border border-white/10" /> : null}
-          <h1 className="text-3xl font-black mt-5">@{user?.username || user?.name}</h1>
-          <p className="text-white/45 mt-2">{user?.email}</p>
-          <p className="text-sm text-white/40 mt-4">Plan: <span className="text-white">{user?.plan || "free"}</span></p>
-          <button onClick={handleLogout} className="mt-8 w-full px-4 py-3 rounded-2xl border border-white/10 text-white/70 hover:text-red-200 hover:border-red-500/30 transition-colors">Sign out</button>
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col lg:grid lg:grid-cols-[0.75fr_1.25fr] gap-5">
+
+        <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 sm:p-8 text-center flex flex-col items-center">
+          <div className="relative mb-4">
+            {avatar ? (
+              <img src={avatar} alt={username || user?.name} className="w-24 h-24 rounded-full object-cover border-2 border-white/10" />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center">
+                <IC.User className="w-10 h-10 text-white/30" />
+              </div>
+            )}
+            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#080808]" />
+          </div>
+
+          <h1 className="text-2xl font-black mt-1">@{user?.username || user?.name}</h1>
+          <p className="text-white/40 text-sm mt-1 font-medium flex items-center gap-1.5 justify-center">
+            <IC.Mail className="w-3.5 h-3.5" />{user?.email}
+          </p>
+
+          <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+            <IC.Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span className={`text-xs font-semibold uppercase tracking-wider ${planColor}`}>{user?.plan || "free"}</span>
+          </div>
+
+          <div className="mt-6 w-full space-y-2">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-white/10 text-white/60 hover:text-red-200 hover:border-red-500/30 transition-colors text-sm font-medium"
+            >
+              <IC.LogOut className="w-4 h-4" /> Sign out
+            </button>
+          </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-8">
-          <h2 className="text-2xl font-bold mb-6">Edit profile</h2>
+        <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+          <div className="flex items-center gap-2 mb-6">
+            <IC.Settings className="w-5 h-5 text-white/40" />
+            <h2 className="text-xl font-bold">Edit profile</h2>
+          </div>
+
           <form onSubmit={handleSave} className="space-y-5">
             <div>
-              <label className="block text-sm text-white/55 mb-2">Username</label>
-              <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full px-4 py-3 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40" />
+              <label className="flex items-center gap-1.5 text-sm text-white/50 mb-2 font-medium">
+                <IC.User className="w-3.5 h-3.5" /> Username
+              </label>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-sm font-medium"
+              />
             </div>
-            <div>
-              <label className="block text-sm text-white/55 mb-2">Avatar URL</label>
-              <input value={avatar} onChange={(event) => setAvatar(event.target.value)} className="w-full px-4 py-3 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40" />
+
+            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <div className="flex items-center gap-4">
+                {avatar ? (
+                  <img src={avatar} alt="Avatar preview" className="w-16 h-16 rounded-full object-cover border border-white/10" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full border border-white/10 bg-white/5 flex items-center justify-center">
+                    <IC.User className="w-7 h-7 text-white/30" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Profile photo</p>
+                  <p className="text-xs text-white/40 mt-1 font-medium">Upload a picture from your device, or pick one of the avatar presets below.</p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50"
+                >
+                  {avatarUploading ? "Processing..." : avatar ? "Change photo" : "Upload photo"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetAvatar}
+                  className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/55 hover:bg-white/[0.05]"
+                >
+                  Reset
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarSelection}
+                />
+              </div>
             </div>
+
             <div>
-              <p className="text-sm text-white/55 mb-3">Avatar presets</p>
+              <p className="flex items-center gap-1.5 text-sm text-white/50 mb-3 font-medium">
+                <IC.User className="w-3.5 h-3.5" /> Avatar presets
+              </p>
               <div className="flex flex-wrap gap-3">
                 {presetAvatars.map((preset) => (
-                  <button key={preset} type="button" onClick={() => setAvatar(preset)} className={`rounded-full border ${avatar === preset ? "border-red-400" : "border-white/10"} p-1`}>
-                    <img src={preset} alt="Avatar preset" className="w-14 h-14 rounded-full" />
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAvatar(preset)}
+                    className={`rounded-full border-2 p-0.5 transition-colors ${avatar === preset ? "border-red-400" : "border-white/10 hover:border-white/30"}`}
+                  >
+                    <img src={preset} alt="Avatar preset" className="w-12 h-12 rounded-full" />
                   </button>
                 ))}
               </div>
             </div>
-            <button type="submit" disabled={saving} className="px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50">
+
+            {status && (
+              <div className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium border ${
+                isSuccess
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200"
+                  : "bg-red-500/10 border-red-500/20 text-red-200"
+              }`}>
+                {isSuccess ? <IC.CheckCircle className="w-4 h-4 shrink-0" /> : <IC.X className="w-4 h-4 shrink-0" />}
+                {status}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shadow-lg shadow-red-500/20 hover:scale-[1.01] active:scale-[0.99] transition-transform"
+            >
+              {saving
+                ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : <IC.Check className="w-4 h-4" />}
               {saving ? "Saving..." : "Save changes"}
             </button>
-            {status ? <p className="text-sm text-white/70">{status}</p> : null}
           </form>
         </section>
       </main>
@@ -115,4 +235,3 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
-

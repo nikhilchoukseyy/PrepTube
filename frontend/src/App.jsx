@@ -9,6 +9,8 @@ import RegisterPage from "./pages/RegisterPage";
 import VideoPage from "./pages/VideoPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthCallback from "./pages/AuthCallback";
+import ForgotPasswordPage from "./components/ForgotPasswordPage";
+import ResetPasswordPage from "./components/ResetPasswordPage";
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
         <Route path="/video/:id" element={<VideoPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       </Routes>
     </Router>
   );

@@ -5,6 +5,7 @@ import ChatMessage from "../models/ChatMessage.js";
 import Playlist from "../models/Playlist.js";
 import User from "../models/User.js";
 import { canAccessPlaylist, isPlaylistMember, isPlaylistOwner } from "../utils/playlistAccess.js";
+import { buildAvailablePlaylistTopics, normalizePlaylistTopics } from "../utils/playlistTopics.js";
 import { DEFAULT_TIMEZONE, getDateKeyInTimezone, serializeUser } from "../utils/userIdentity.js";
 
 dotenv.config();
@@ -40,7 +41,7 @@ function isoDurationToSeconds(isoDuration) {
 }
 
 function ensureProgressEntry(playlist, userId) {
-  let userProgress = playlist.progress.find((entry) => String(entry.user) === String(userId));
+  let userProgress = playlist.progress.find((entry) => String(entry.user?._id || entry.user) === String(userId));
 
   if (!userProgress) {
     userProgress = {
@@ -52,10 +53,38 @@ function ensureProgressEntry(playlist, userId) {
       dailyMinutes: [],
     };
     playlist.progress.push(userProgress);
-    userProgress = playlist.progress.find((entry) => String(entry.user) === String(userId));
+    userProgress = playlist.progress.find((entry) => String(entry.user?._id || entry.user) === String(userId));
   }
 
   return userProgress;
+}
+
+function getEntityId(value) {
+  return String(value?._id || value?.id || value || "");
+}
+
+function hasUserProfileFields(user) {
+  return Boolean(user && typeof user === "object" && (user.username || user.name || user.email || user.avatar));
+}
+
+function pickPreferredUser(currentUser, nextUser) {
+  if (hasUserProfileFields(currentUser)) return currentUser;
+  if (hasUserProfileFields(nextUser)) return nextUser;
+  return currentUser || nextUser;
+}
+
+function mergeDailyMinutesEntries(entries = []) {
+  const minutesByDate = new Map();
+
+  for (const entry of entries) {
+    if (!entry?.date) continue;
+    const minutes = Number(entry.minutes || 0);
+    minutesByDate.set(entry.date, +Number((minutesByDate.get(entry.date) || 0) + minutes).toFixed(2));
+  }
+
+  return Array.from(minutesByDate.entries())
+    .sort(([leftDate], [rightDate]) => leftDate.localeCompare(rightDate))
+    .map(([date, minutes]) => ({ date, minutes }));
 }
 
 function addDays(dateKey, days) {
@@ -130,31 +159,189 @@ function formatMember(user) {
   };
 }
 
+function normalizeProgressEntries(progress = []) {
+  const mergedByUserId = new Map();
+  let changed = false;
+
+  for (const entry of progress) {
+    const userId = getEntityId(entry?.user);
+    if (!userId) {
+      changed = true;
+      continue;
+    }
+
+    const existing = mergedByUserId.get(userId);
+    const completedVideos = Array.from(
+      new Set([...(existing?.completedVideos || []), ...((entry?.completedVideos || []).filter(Boolean))])
+    );
+    const dailyMinutes = mergeDailyMinutesEntries([...(existing?.dailyMinutes || []), ...(entry?.dailyMinutes || [])]);
+    const streakStats = computeStreakStats(dailyMinutes, getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE));
+
+    mergedByUserId.set(userId, {
+      user: pickPreferredUser(existing?.user, entry.user),
+      completedVideos,
+      currentStreak: streakStats.currentStreak,
+      longestStreak: streakStats.longestStreak,
+      lastStreakDate: streakStats.lastStreakDate,
+      dailyMinutes,
+    });
+
+    if (
+      existing ||
+      completedVideos.length !== (entry?.completedVideos || []).length ||
+      dailyMinutes.length !== (entry?.dailyMinutes || []).length ||
+      (entry?.currentStreak || 0) !== streakStats.currentStreak ||
+      (entry?.longestStreak || 0) !== streakStats.longestStreak ||
+      (entry?.lastStreakDate || null) !== streakStats.lastStreakDate
+    ) {
+      changed = true;
+    }
+  }
+
+  const normalizedProgress = Array.from(mergedByUserId.values());
+  if (normalizedProgress.length !== progress.length) changed = true;
+
+  return { normalizedProgress, changed };
+}
+
+function normalizeVideoNotes(videoNotes = []) {
+  const latestNoteByOwnerAndVideo = new Map();
+  let changed = false;
+
+  for (const note of videoNotes) {
+    const videoId = String(note?.videoId || "").trim();
+    const userId = getEntityId(note?.user || note?.updatedBy);
+    if (!videoId || !userId) {
+      changed = true;
+      continue;
+    }
+
+    const content = typeof note?.content === "string" ? note.content.trim() : "";
+    const updatedAt = note?.updatedAt ? new Date(note.updatedAt) : new Date(0);
+    const ownerKey = `${videoId}:${userId}`;
+    const existing = latestNoteByOwnerAndVideo.get(ownerKey);
+
+    if (!existing || updatedAt >= existing.updatedAt) {
+      latestNoteByOwnerAndVideo.set(ownerKey, {
+        videoId,
+        user: note?.user || note?.updatedBy,
+        content,
+        updatedAt,
+      });
+    }
+
+    if (content !== (note?.content || "")) {
+      changed = true;
+    }
+  }
+
+  const normalizedVideoNotes = Array.from(latestNoteByOwnerAndVideo.values()).map((note) => ({
+    ...note,
+    updatedAt: note.updatedAt instanceof Date && !Number.isNaN(note.updatedAt.getTime()) ? note.updatedAt : new Date(0),
+  }));
+
+  if (normalizedVideoNotes.length !== videoNotes.length) changed = true;
+
+  return { normalizedVideoNotes, changed };
+}
+
+function normalizePlaylistState(playlist) {
+  const ownerId = getEntityId(playlist?.owner);
+  const uniqueMembers = [];
+  const seenMemberIds = new Set();
+  let membersChanged = false;
+
+  for (const member of playlist?.members || []) {
+    const memberId = getEntityId(member);
+    if (!memberId || memberId === ownerId || seenMemberIds.has(memberId)) {
+      membersChanged = true;
+      continue;
+    }
+
+    seenMemberIds.add(memberId);
+    uniqueMembers.push(member);
+  }
+
+  const { normalizedProgress, changed: progressChanged } = normalizeProgressEntries(playlist?.progress || []);
+  const { normalizedVideoNotes, changed: videoNotesChanged } = normalizeVideoNotes(playlist?.videoNotes || []);
+  const normalizedTopics = normalizePlaylistTopics(playlist?.topics || []);
+  const currentTopics = playlist?.topics || [];
+  const topicsChanged =
+    normalizedTopics.length !== currentTopics.length ||
+    normalizedTopics.some((topic, index) => topic !== currentTopics[index]);
+
+  if (membersChanged) {
+    playlist.members = uniqueMembers;
+  }
+
+  if (progressChanged) {
+    playlist.progress = normalizedProgress;
+  }
+
+  if (videoNotesChanged) {
+    playlist.videoNotes = normalizedVideoNotes;
+  }
+
+  if (topicsChanged) {
+    playlist.topics = normalizedTopics;
+  }
+
+  return membersChanged || progressChanged || videoNotesChanged || topicsChanged;
+}
+
+function getPlaylistParticipants(playlist) {
+  const participants = [];
+  const seenUserIds = new Set();
+
+  for (const user of [playlist?.owner, ...(playlist?.members || [])]) {
+    const userId = getEntityId(user);
+    if (!userId || seenUserIds.has(userId)) continue;
+    seenUserIds.add(userId);
+    participants.push(user);
+  }
+
+  return participants;
+}
+
 function computePlaylistStats(playlist) {
   const videos = playlist.videos || [];
   const totalSeconds = videos.reduce((sum, video) => sum + (video.durationSeconds || 0), 0);
   const durationMap = Object.fromEntries(videos.map((video) => [video.videoId, video.durationSeconds || 0]));
+  const { normalizedProgress } = normalizeProgressEntries(playlist.progress || []);
+  const progressByUserId = new Map(normalizedProgress.map((entry) => [getEntityId(entry.user), entry]));
 
-  const userStats = (playlist.progress || []).map((entry) => {
-    const completedVideos = entry.completedVideos || [];
-    const watchedSeconds = completedVideos.reduce((acc, videoId) => acc + (durationMap[videoId] || 0), 0);
-    const completedCount = completedVideos.length;
-    const totalVideos = videos.length;
-    const percent = totalVideos ? Math.round((completedCount / totalVideos) * 100) : 0;
-    const todayMinutes = (entry.dailyMinutes || []).find((daily) => daily.date === getDateKeyInTimezone())?.minutes || 0;
+  const userStats = getPlaylistParticipants(playlist)
+    .map((participant) => {
+      const participantId = getEntityId(participant);
+      const entry = progressByUserId.get(participantId);
+      const completedVideos = entry?.completedVideos || [];
+      const watchedSeconds = completedVideos.reduce((acc, videoId) => acc + (durationMap[videoId] || 0), 0);
+      const completedCount = completedVideos.length;
+      const totalVideos = videos.length;
+      const percent = totalVideos ? Math.round((completedCount / totalVideos) * 100) : 0;
+      const todayMinutes =
+        (entry?.dailyMinutes || []).find((daily) => daily.date === getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE))?.minutes || 0;
 
-    return {
-      user: formatMember(entry.user),
-      completedCount,
-      percent,
-      watchedSeconds,
-      watchedHours: +(watchedSeconds / 3600).toFixed(2),
-      completedVideos,
-      currentStreak: entry.currentStreak || 0,
-      longestStreak: entry.longestStreak || 0,
-      todayMinutes: +Number(todayMinutes || 0).toFixed(2),
-    };
-  });
+      return {
+        user: formatMember(participant),
+        completedCount,
+        percent,
+        watchedSeconds,
+        watchedHours: +(watchedSeconds / 3600).toFixed(2),
+        completedVideos,
+        currentStreak: entry?.currentStreak || 0,
+        longestStreak: entry?.longestStreak || 0,
+        todayMinutes: +Number(todayMinutes || 0).toFixed(2),
+      };
+    })
+    .filter((stat) => stat.user)
+    .sort((left, right) =>
+      right.percent - left.percent ||
+      right.completedCount - left.completedCount ||
+      right.watchedSeconds - left.watchedSeconds ||
+      right.currentStreak - left.currentStreak ||
+      (left.user?.username || left.user?.name || "").localeCompare(right.user?.username || right.user?.name || "")
+    );
 
   return {
     totalSeconds,
@@ -164,7 +351,7 @@ function computePlaylistStats(playlist) {
 }
 
 async function fetchPlaylistWithMembers(playlistId) {
-  return Playlist.findOne({ playlistId }).populate("owner members progress.user", "name email username avatar plan");
+  return Playlist.findOne({ playlistId }).populate("owner members progress.user videoNotes.user", "name email username avatar plan");
 }
 
 async function assertPlaylistAccess(playlistId, userId) {
@@ -176,6 +363,8 @@ async function assertPlaylistAccess(playlistId, userId) {
   if (!canAccessPlaylist(playlist, userId)) {
     return { error: { status: 403, body: { message: "You no longer have access to this playlist" } } };
   }
+
+  normalizePlaylistState(playlist);
 
   return { playlist };
 }
@@ -340,6 +529,7 @@ export const createPlaylist = async (req, res) => {
       title: playlistTitle,
       videos,
       owner: userId,
+      topics: normalizePlaylistTopics(req.body?.topics || []),
       inviteToken: crypto.randomBytes(16).toString("hex"),
     });
 
@@ -372,6 +562,7 @@ export const getUserPlaylist = async (req, res) => {
       owner: formatMember(playlist.owner),
       members: (playlist.members || []).map(formatMember),
       isPublic: playlist.isPublic,
+      topics: normalizePlaylistTopics(playlist.topics || []),
       inviteToken: playlist.inviteToken,
       videos: playlist.videos,
       createdAt: playlist.createdAt,
@@ -399,10 +590,14 @@ export const getExplorePlaylists = async (req, res) => {
       memberCount: (playlist.members?.length || 0) + 1,
       thumbnail: playlist.videos?.[0]?.thumbnail || null,
       isPublic: playlist.isPublic,
+      topics: normalizePlaylistTopics(playlist.topics || []),
       updatedAt: playlist.updatedAt,
     }));
 
-    return res.json({ playlists: explorePlaylists });
+    return res.json({
+      playlists: explorePlaylists,
+      availableTopics: buildAvailablePlaylistTopics(playlists),
+    });
   } catch (error) {
     console.error("Error loading explore playlists", error.message);
     return res.status(500).json({ message: "Server error" });
@@ -442,17 +637,27 @@ export const getPlaylistDetail = async (req, res) => {
     const requesterId = String(req.user._id);
     const requesterProgress = playlist.progress.find((entry) => String(entry.user?._id || entry.user) === requesterId);
     const completedSet = new Set(requesterProgress?.completedVideos || []);
+    const noteByVideoId = new Map(
+      (playlist.videoNotes || [])
+        .filter((note) => getEntityId(note?.user) === requesterId)
+        .map((note) => [note.videoId, note])
+    );
     const todayKey = getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE);
     const todayMinutes = requesterProgress?.dailyMinutes?.find((entry) => entry.date === todayKey)?.minutes || 0;
 
-    const videos = playlist.videos.map((video) => ({
-      videoId: video.videoId,
-      title: video.title,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      durationSeconds: video.durationSeconds,
-      completed: completedSet.has(video.videoId),
-    }));
+    const videos = playlist.videos.map((video) => {
+      const videoNote = noteByVideoId.get(video.videoId);
+      return {
+        videoId: video.videoId,
+        title: video.title,
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        durationSeconds: video.durationSeconds,
+        completed: completedSet.has(video.videoId),
+        note: videoNote?.content || "",
+        noteUpdatedAt: videoNote?.updatedAt || null,
+      };
+    });
 
     return res.status(200).json({
       playlist: {
@@ -462,6 +667,7 @@ export const getPlaylistDetail = async (req, res) => {
         members: (playlist.members || []).map(formatMember),
         videos,
         isPublic: playlist.isPublic,
+        topics: normalizePlaylistTopics(playlist.topics || []),
         inviteToken: isPlaylistOwner(playlist, req.user._id) ? playlist.inviteToken : null,
         totals: { totalSeconds, totalHours },
         userStats,
@@ -480,6 +686,85 @@ export const getPlaylistDetail = async (req, res) => {
     });
   } catch (error) {
     console.error("getPlaylistDetail error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const saveVideoNote = async (req, res) => {
+  try {
+    const { playlistId, videoId } = req.params;
+    const { content } = req.body || {};
+
+    if (typeof content !== "string") {
+      return res.status(400).json({ message: "content must be a string" });
+    }
+
+    const trimmedContent = content.trim();
+    if (trimmedContent.length > 5000) {
+      return res.status(400).json({ message: "Notes must be 5000 characters or fewer" });
+    }
+
+    const { playlist, error } = await assertPlaylistAccess(playlistId, req.user._id);
+    if (error) {
+      return res.status(error.status).json(error.body);
+    }
+
+    const videoExists = (playlist.videos || []).some((video) => video.videoId === videoId);
+    if (!videoExists) {
+      return res.status(404).json({ message: "Video not found in this playlist" });
+    }
+
+    playlist.videoNotes = playlist.videoNotes || [];
+    const requesterId = String(req.user._id);
+    const existingNoteIndex = playlist.videoNotes.findIndex(
+      (note) => note.videoId === videoId && getEntityId(note?.user || note?.updatedBy) === requesterId
+    );
+
+    if (!trimmedContent) {
+      if (existingNoteIndex !== -1) {
+        playlist.videoNotes.splice(existingNoteIndex, 1);
+        await playlist.save();
+      }
+
+      return res.status(200).json({
+        message: "Video note cleared",
+        note: {
+          videoId,
+          content: "",
+          updatedAt: null,
+        },
+      });
+    }
+
+    const nextNote = {
+      videoId,
+      user: req.user._id,
+      content: trimmedContent,
+      updatedAt: new Date(),
+    };
+
+    if (existingNoteIndex === -1) {
+      playlist.videoNotes.push(nextNote);
+    } else {
+      playlist.videoNotes.splice(existingNoteIndex, 1, nextNote);
+    }
+
+    await playlist.save();
+    await playlist.populate("videoNotes.user", "name email username avatar plan");
+
+    const savedNote = playlist.videoNotes.find(
+      (note) => note.videoId === videoId && getEntityId(note?.user) === requesterId
+    );
+    return res.status(200).json({
+      message: "Video note saved",
+      note: {
+        videoId,
+        content: savedNote?.content || "",
+        updatedAt: savedNote?.updatedAt || null,
+      },
+    });
+  } catch (error) {
+    console.error("saveVideoNote error", error.message);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -551,6 +836,8 @@ export const joinPlaylist = async (req, res) => {
       return res.status(400).json({ message: "Invalid invite or playlist is not available" });
     }
 
+    normalizePlaylistState(playlist);
+
     if (isPlaylistOwner(playlist, userId) || isPlaylistMember(playlist, userId)) {
       return res.status(200).json({
         message: "Already a member",
@@ -561,8 +848,7 @@ export const joinPlaylist = async (req, res) => {
 
     await enforceMemberLimit(playlist);
 
-    playlist.members.push(userId);
-    await playlist.save();
+    await Playlist.updateOne({ _id: playlist._id }, { $addToSet: { members: userId } });
 
     return res.status(200).json({
       message: "Joined playlist successfully",
@@ -628,7 +914,7 @@ export const removeMember = async (req, res) => {
 export const updatePlaylistVisibility = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const { isPublic } = req.body;
+    const { isPublic, topics } = req.body || {};
     const playlist = await Playlist.findOne({ playlistId });
 
     if (!playlist) {
@@ -639,10 +925,26 @@ export const updatePlaylistVisibility = async (req, res) => {
       return res.status(403).json({ message: "Only the owner can change visibility" });
     }
 
-    playlist.isPublic = Boolean(isPublic);
+    if (topics !== undefined && !Array.isArray(topics)) {
+      return res.status(400).json({ message: "topics must be an array" });
+    }
+
+    const nextIsPublic = typeof isPublic === "boolean" ? isPublic : playlist.isPublic;
+    const normalizedTopics = normalizePlaylistTopics(topics !== undefined ? topics : playlist.topics || []);
+
+    if (nextIsPublic && normalizedTopics.length === 0) {
+      return res.status(400).json({ message: "Choose at least one topic before making this playlist public" });
+    }
+
+    playlist.isPublic = nextIsPublic;
+    playlist.topics = normalizedTopics;
     await playlist.save();
 
-    return res.json({ message: `Playlist is now ${playlist.isPublic ? "public" : "private"}`, isPublic: playlist.isPublic });
+    return res.json({
+      message: `Playlist is now ${playlist.isPublic ? "public" : "private"}`,
+      isPublic: playlist.isPublic,
+      topics: playlist.topics,
+    });
   } catch (error) {
     console.error("updatePlaylistVisibility error", error.message);
     return res.status(500).json({ message: "Server error" });
@@ -781,4 +1083,3 @@ export const getChatMessage = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-

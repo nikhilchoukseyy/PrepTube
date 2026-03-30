@@ -2,6 +2,14 @@
 import User from "../models/User.js";
 
 export const DEFAULT_TIMEZONE = "Asia/Kolkata";
+const GENERATED_AVATAR_HOSTS = [
+  "api.dicebear.com/9.x/initials",
+  "api.dicebear.com/9.x/thumbs",
+  "api.dicebear.com/9.x/adventurer",
+  "api.dicebear.com/9.x/fun-emoji",
+];
+const DATA_IMAGE_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
+const MAX_AVATAR_LENGTH = 1_500_000;
 
 function slugify(value = "") {
   return value
@@ -14,6 +22,31 @@ function slugify(value = "") {
 export function buildAvatarUrl(seed = "PrepTube") {
   const safeSeed = encodeURIComponent(seed);
   return `https://api.dicebear.com/9.x/initials/svg?seed=${safeSeed}`;
+}
+
+export function isGeneratedAvatarUrl(value = "") {
+  if (typeof value !== "string") return false;
+  return GENERATED_AVATAR_HOSTS.some((host) => value.includes(host));
+}
+
+export function normalizeAvatarInput(value) {
+  if (typeof value !== "string") return null;
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return "";
+
+  const isRemoteUrl = /^https?:\/\//i.test(trimmedValue);
+  const isDataImage = DATA_IMAGE_PREFIX.test(trimmedValue);
+
+  if (!isRemoteUrl && !isDataImage) {
+    return null;
+  }
+
+  if (trimmedValue.length > MAX_AVATAR_LENGTH) {
+    return null;
+  }
+
+  return trimmedValue;
 }
 
 export function buildUsernameBase({ username, name, email }) {
