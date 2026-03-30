@@ -1,24 +1,43 @@
-import jwt from 'jsonwebtoken'
-import User from '../models/User.js'
+﻿import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import { buildAvatarUrl, generateUniqueUsername } from "../utils/userIdentity.js";
 
-const protect = async (req, res,next) => {
+const protect = async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     try {
-      token = req.headers.authorization.split(" ")[1]
+      token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select("-password");
-      next();
+      const user = await User.findById(decoded.id).select("-password");
+
+      if (!user) {
+        return res.status(401).json({ message: "Not authorized, user not found" });
+      }
+
+      let didMutate = false;
+      if (!user.username) {
+        user.username = await generateUniqueUsername(user, user._id);
+        didMutate = true;
+      }
+      if (!user.avatar) {
+        user.avatar = buildAvatarUrl(user.username || user.name || user.email);
+        didMutate = true;
+      }
+      if (didMutate) {
+        await user.save();
+      }
+
+      req.user = user;
+      return next();
     } catch (error) {
       console.error("Token verification failed:", error);
-      res.status(401).json({ message: "Not authorized, token failed" });
+      return res.status(401).json({ message: "Not authorized, token failed" });
     }
   }
 
-  else {
-    res.status(401).json({ message: "not authorized, no token" })
-  }
-}
+  return res.status(401).json({ message: "Not authorized, no token" });
+};
 
-export { protect }
+export { protect };
+

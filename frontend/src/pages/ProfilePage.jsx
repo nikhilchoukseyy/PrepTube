@@ -1,125 +1,118 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import Navbar from '../components/Navbar';
+﻿import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import Navbar from "../components/Navbar";
+import { API_URL, authHeaders, clearStoredAuth, getStoredUser, getToken, requireAuthRedirect, updateStoredUser } from "../utils/auth";
+import { setPageMeta } from "../utils/meta";
+
+const buildPresetAvatars = (seed) => [
+  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed || "PrepTube")}`,
+  `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed || "PrepTube")}`,
+  `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed || "PrepTube")}`,
+  `https://api.dicebear.com/9.x/fun-emoji/svg?seed=${encodeURIComponent(seed || "PrepTube")}`,
+];
 
 const ProfilePage = () => {
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const storedUser = useMemo(() => getStoredUser(), []);
+  const [user, setUser] = useState(storedUser);
+  const [username, setUsername] = useState(storedUser?.username || "");
+  const [avatar, setAvatar] = useState(storedUser?.avatar || "");
+  const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (!userData) { navigate('/login'); return; }
-    setUser(JSON.parse(userData));
+    setPageMeta({ title: "Profile | PrepTube", description: "Manage your PrepTube profile, username, avatar, and learning plan." });
+  }, []);
+
+  useEffect(() => {
+    if (!getToken()) {
+      requireAuthRedirect(navigate, "/profile");
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/users/me`, { headers: authHeaders() });
+        setUser(res.data.user);
+        setUsername(res.data.user.username || "");
+        setAvatar(res.data.user.avatar || "");
+        updateStoredUser(res.data.user);
+      } catch {
+        clearStoredAuth();
+        requireAuthRedirect(navigate, "/profile");
+      }
+    };
+
+    fetchProfile();
   }, [navigate]);
 
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setStatus("");
+    try {
+      const res = await axios.patch(`${API_URL}/users/profile`, { username, avatar }, { headers: authHeaders() });
+      const updatedUser = updateStoredUser(res.data.user);
+      setUser(updatedUser);
+      setStatus("Profile updated successfully.");
+    } catch (err) {
+      setStatus(err.response?.data?.message || "Unable to update profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+    clearStoredAuth();
+    navigate("/");
   };
 
-  // Get initials for avatar
-  const getInitials = (name) => {
-    if (!name) return '?';
-    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  if (!user) return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        className="w-10 h-10 border-4 border-red-500/30 border-t-red-500 rounded-full"
-      />
-    </div>
-  );
+  const presetAvatars = buildPresetAvatars(username || user?.name || user?.email);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <Navbar />
+      <main className="max-w-4xl mx-auto px-6 py-12 grid lg:grid-cols-[0.75fr_1.25fr] gap-6">
+        <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-8 text-center">
+          {avatar ? <img src={avatar} alt={username || user?.name || "Profile"} className="w-28 h-28 rounded-full object-cover mx-auto border border-white/10" /> : null}
+          <h1 className="text-3xl font-black mt-5">@{user?.username || user?.name}</h1>
+          <p className="text-white/45 mt-2">{user?.email}</p>
+          <p className="text-sm text-white/40 mt-4">Plan: <span className="text-white">{user?.plan || "free"}</span></p>
+          <button onClick={handleLogout} className="mt-8 w-full px-4 py-3 rounded-2xl border border-white/10 text-white/70 hover:text-red-200 hover:border-red-500/30 transition-colors">Sign out</button>
+        </section>
 
-      {/* Background glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none" />
-
-      <div className="max-w-2xl mx-auto px-6 py-14 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-        >
-          {/* Avatar + Name header */}
-          <div className="flex flex-col items-center mb-10">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-              className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center text-3xl font-black text-white shadow-2xl shadow-red-500/30 mb-4"
-            >
-              {getInitials(user.name)}
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-2xl font-bold text-white"
-            >
-              {user.name}
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-              className="text-white/30 text-sm mt-1"
-            >
-              {user.email}
-            </motion.p>
-          </div>
-
-          {/* Info Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-            className="bg-white/[0.03] border border-white/[0.08] rounded-2xl overflow-hidden mb-4"
-          >
-            {/* Name row */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-              <div>
-                <p className="text-white/30 text-xs uppercase tracking-wider mb-1">Full Name</p>
-                <p className="text-white font-medium">{user.name}</p>
-              </div>
-              <span className="text-white/10 text-xl">👤</span>
+        <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-8">
+          <h2 className="text-2xl font-bold mb-6">Edit profile</h2>
+          <form onSubmit={handleSave} className="space-y-5">
+            <div>
+              <label className="block text-sm text-white/55 mb-2">Username</label>
+              <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full px-4 py-3 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40" />
             </div>
-
-            {/* Email row */}
-            <div className="flex items-center justify-between px-6 py-4">
-              <div>
-                <p className="text-white/30 text-xs uppercase tracking-wider mb-1">Email Address</p>
-                <p className="text-white font-medium">{user.email}</p>
-              </div>
-              <span className="text-white/10 text-xl">✉️</span>
+            <div>
+              <label className="block text-sm text-white/55 mb-2">Avatar URL</label>
+              <input value={avatar} onChange={(event) => setAvatar(event.target.value)} className="w-full px-4 py-3 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40" />
             </div>
-          </motion.div>
-
-          
-
-          {/* Logout button */}
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={handleLogout}
-            className="w-full py-3 bg-white/[0.04] hover:bg-red-500/10 border border-white/[0.08] hover:border-red-500/30 text-white/50 hover:text-red-400 font-semibold rounded-xl text-sm transition-all duration-200"
-          >
-            Sign out
-          </motion.button>
-        </motion.div>
-      </div>
+            <div>
+              <p className="text-sm text-white/55 mb-3">Avatar presets</p>
+              <div className="flex flex-wrap gap-3">
+                {presetAvatars.map((preset) => (
+                  <button key={preset} type="button" onClick={() => setAvatar(preset)} className={`rounded-full border ${avatar === preset ? "border-red-400" : "border-white/10"} p-1`}>
+                    <img src={preset} alt="Avatar preset" className="w-14 h-14 rounded-full" />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="submit" disabled={saving} className="px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50">
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+            {status ? <p className="text-sm text-white/70">{status}</p> : null}
+          </form>
+        </section>
+      </main>
     </div>
   );
 };
 
 export default ProfilePage;
+
