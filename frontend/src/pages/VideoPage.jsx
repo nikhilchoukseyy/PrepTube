@@ -649,7 +649,7 @@ const VideoPage = () => {
                   className={`w-full flex items-center gap-3 px-3 sm:px-4 py-3 text-left border-l-4 transition-colors ${selectedVideo?.videoId === video.videoId ? "border-red-400 bg-white/[0.05]" : "border-transparent hover:bg-white/[0.03] cursor-pointer active:scale-0.9"}`}
                 >
                   <div className="relative shrink-0">
-                    <ThumbnailImage videoId={video.videoId} fallbackSrc={video.thumbnail} alt={video.title} className="w-20 sm:w-24 h-12 sm:h-14 rounded-xl object-cover" />
+                    <ThumbnailImage videoId={video.videoId} fallbackSrc={video.thumbnail} alt={video.title} className="w-20 sm:w-24 h-12 sm:h-14 rounded-xl object-cover" loading="lazy" />
                     {video.completed && (
                       <div className="absolute inset-0 rounded-xl bg-black/60 flex items-center justify-center">
                         <IC.Check className="w-5 h-5 text-emerald-400" />

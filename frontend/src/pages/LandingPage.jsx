@@ -1,11 +1,31 @@
-﻿import { Link } from "react-router-dom";
+﻿import { useEffect, useMemo, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "motion/react";
+import axios from "axios";
 import Navbar from "../components/Navbar";
-import { getStoredUser } from "../utils/auth";
+import { API_URL, getStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
-import { useEffect } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+import demoImg from "../assets/demo_img.png";
+import pasteUrlImg from "../assets/paste_url.png";
+import chatImg from "../assets/chatImg.png";
+import progressImg from "../assets/progress.png";
+import ReviewCard from "../components/ReviewCard";
 
-// ── Inline SVG icon set (no extra dep needed) ──────────────────────────────
+const demoVideoModules = import.meta.glob("../assets/*.{mp4,webm,ogg,mov,m4v}", {
+  eager: true,
+  import: "default",
+});
+
+const sortedDemoVideoEntries = Object.entries(demoVideoModules).sort(([leftPath], [rightPath]) =>
+  leftPath.localeCompare(rightPath)
+);
+
+const demoVideoSrc =
+  sortedDemoVideoEntries.find(([path]) => /demo|product|landing/i.test(path))?.[1] ||
+  sortedDemoVideoEntries[0]?.[1] ||
+  "";
+
 const Icon = {
   Play: () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -65,8 +85,29 @@ const Icon = {
       <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" />
     </svg>
   ),
-  Dot: () => (
-    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+  Mail: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+      <path d="M4 6h16v12H4z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m4 7 8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  HelpCircle: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" />
+    </svg>
+  ),
+  ChevronDown: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Send: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+      <path d="M22 2 11 13" strokeLinecap="round" />
+      <path d="M22 2 15 22l-4-9-9-4Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   ),
 };
 
@@ -76,38 +117,109 @@ const features = [
     tag: "Import",
     title: "Paste URL. Done.",
     description:
-      "Any YouTube playlist becomes a structured study room in seconds — thumbnails, durations, and order preserved automatically.",
+      "Any YouTube playlist becomes a structured study room in seconds with video order, thumbnails, and durations preserved automatically.",
     accent: "from-red-500/20 to-orange-500/10",
     iconBg: "bg-red-500/15 text-red-300",
+    bgImage: pasteUrlImg
   },
   {
     icon: <Icon.BarChart />,
     tag: "Progress",
     title: "See every step forward.",
     description:
-      "Individual and team progress tracked live. Streaks reward consistency and keep the momentum alive across sessions.",
+      "Track completed videos, study time, and streaks so solo progress and shared accountability stay visible in one place.",
     accent: "from-emerald-500/20 to-teal-500/10",
     iconBg: "bg-emerald-500/15 text-emerald-300",
+    bgImage: progressImg
   },
   {
     icon: <Icon.MessageSquare />,
     tag: "Collab",
     title: "Chat beside the lesson.",
     description:
-      "Discuss concepts and drop notes right next to the video — no tab switching, no context lost, no momentum broken.",
+      "Discuss concepts, send voice or image messages, and keep private notes per video without losing the context of what you are studying.",
     accent: "from-amber-500/20 to-yellow-500/10",
     iconBg: "bg-amber-500/15 text-amber-300",
+    bgImage: chatImg
   },
 ];
 
-const stats = [
-  { icon: <Icon.Play />, label: "Videos", value: "42", color: "text-white" },
-  { icon: <Icon.BarChart />, label: "Progress", value: "68%", color: "text-emerald-300" },
-  { icon: <Icon.Flame />, label: "Streak", value: "5d", color: "text-amber-300" },
+const reviews = [
+  { username: "Arjun S.", role: "CS Student", review: "We finally finished a 120-video DSA course. The leaderboard made everyone competitive in the best way.", gradient: "from-red-500/20 to-orange-500/10" },
+  { username: "Priya M.", role: "Study Group Lead", review: "PrepTube feels like a lightweight course room instead of a lonely playlist tab. Game changer.", gradient: "from-violet-500/20 to-purple-500/10" },
+  { username: "Rahul K.", role: "Self Learner", review: "The streak feature is addictive. I haven't missed a study day in 3 weeks.", gradient: "from-emerald-500/20 to-teal-500/10" },
+  { username: "Sneha R.", role: "Engineering Student", review: "Voice messages in the chat while watching? That's actually genius for quick doubt solving.", gradient: "from-amber-500/20 to-yellow-500/10" },
+  { username: "Dev P.", role: "Bootcamp Student", review: "My friends kept saying they watched the videos. PrepTube showed the truth 😂", gradient: "from-pink-500/20 to-rose-500/10" },
+  { username: "Ananya T.", role: "GATE Aspirant", review: "Imported 3 playlists in under a minute. The UI is clean and nothing feels bloated.", gradient: "from-cyan-500/20 to-sky-500/10" },
+  { username: "Vikram N.", role: "Placement Prep", review: "Having a study room with real-time chat next to the video is exactly what was missing.", gradient: "from-lime-500/20 to-green-500/10" },
+  { username: "Meera J.", role: "Online Learner", review: "Finally stopped losing my place in long playlists. Progress tracking is so satisfying.", gradient: "from-orange-500/20 to-red-500/10" },
+  { username: "Karan B.", role: "College Group", review: "We use it for our entire semester prep. Sharing invite links is super smooth.", gradient: "from-indigo-500/20 to-blue-500/10" },
+  { username: "Tanvi S.", role: "Competitive Coder", review: "The leaderboard hits different when you're ranked #1 in your study group 👑", gradient: "from-fuchsia-500/20 to-pink-500/10" },
+  { username: "Rohan D.", role: "YouTube Learner", review: "I used to have 40 tabs open. Now I have PrepTube open. That's it.", gradient: "from-teal-500/20 to-emerald-500/10" },
+  { username: "Ishaan V.", role: "DSA Grinder", review: "The accountability is real. Can't slack when your friends can see your 0% completion.", gradient: "from-yellow-500/20 to-amber-500/10" },
+];
+
+const faqs = [
+  {
+    question: "What exactly is PrepTube?",
+    answer:
+      "PrepTube turns a YouTube playlist into a collaborative study room. Instead of sharing links in chat and learning in separate tabs, members can join the same room, track progress, discuss lessons live, and stay accountable together.",
+  },
+  {
+    question: "How do I import a playlist?",
+    answer:
+      "On the Courses page, paste any valid YouTube playlist URL. PrepTube extracts the YouTube playlist id, pulls the playlist metadata and video list from the YouTube Data API, calculates durations, and creates a room around that playlist.",
+  },
+  {
+    question: "Can I use PrepTube for free?",
+    answer:
+      "Yes. The free plan lets you import playlists, track progress and streaks, use live chat, and invite up to 5 collaborators to a room, which means 6 total people including the owner.",
+  },
+  {
+    question: "Are my notes visible to other members?",
+    answer:
+      "No. Video notes are private per user. Other room members can see the shared playlist, progress-related stats, and chat, but they cannot read your private notes for a video.",
+  },
+  {
+    question: "How are streaks calculated?",
+    answer:
+      "Streaks are tracked per user and per playlist. PrepTube logs active study time from the workspace, and a day counts toward the streak once you reach at least 30 minutes on that playlist for that date in the Asia/Kolkata timezone.",
+  },
+  {
+    question: "How do public playlists and Explore work?",
+    answer:
+      "The room owner can mark a playlist as public after selecting at least one topic. Public rooms appear in Explore and can be filtered by topic. Users still join the room before entering the full workspace.",
+  },
+  {
+    question: "What if I do not renew my premium after 1 month?",
+    answer:
+      "Your account falls back to the free plan when the premium period ends. Existing room members keep their access, but new joins will follow the free plan member limit until you renew premium again.",
+  },
+  {
+    question: "Do chat messages stay saved?",
+    answer:
+      "Yes. Text, image, and voice messages are stored so recent room chat can be loaded again when members reopen the workspace. Media uploads depend on Cloudinary being configured on the backend.",
+  },
 ];
 
 const LandingPage = () => {
   const user = getStoredUser();
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
+  const [sendingQuestion, setSendingQuestion] = useState(false);
+  const [questionStatus, setQuestionStatus] = useState({ type: "", message: "" });
+  const [questionForm, setQuestionForm] = useState({
+    name: user?.name || user?.username || "",
+    email: user?.email || "",
+    question: "",
+  });
+
+  const heroCtaLink = useMemo(
+    () => (user ? "/courses" : "/login?redirect=/courses"),
+    [user]
+  );
+  const [isMuted, setIsMuted] = useState(true);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     setPageMeta({
@@ -120,32 +232,65 @@ const LandingPage = () => {
     });
   }, []);
 
+  const handleQuestionChange = (field) => (event) => {
+    setQuestionStatus({ type: "", message: "" });
+    setQuestionForm((current) => ({
+      ...current,
+      [field]: event.target.value,
+    }));
+  };
+
+  const handleQuestionSubmit = async (event) => {
+    event.preventDefault();
+    setSendingQuestion(true);
+    setQuestionStatus({ type: "", message: "" });
+
+    try {
+      const response = await axios.post(`${API_URL}/auth/question`, {
+        name: questionForm.name,
+        email: questionForm.email,
+        question: questionForm.question,
+      });
+
+      setQuestionStatus({
+        type: "success",
+        message: response.data?.message || "Your question has been sent successfully.",
+      });
+      setQuestionForm((current) => ({
+        ...current,
+        question: "",
+      }));
+    } catch (error) {
+      setQuestionStatus({
+        type: "error",
+        message: error.response?.data?.message || "Unable to send your question right now.",
+      });
+    } finally {
+      setSendingQuestion(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#080808] text-white overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-[#080808] text-white">
       <Navbar />
 
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <main>
-        <section className="relative px-4 sm:px-6 pt-16 sm:pt-20 pb-20 sm:pb-28">
-          {/* Background glow */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-red-600/10 rounded-full blur-[120px]" />
-            <div className="absolute top-20 right-0 w-[300px] h-[300px] bg-orange-500/8 rounded-full blur-[90px]" />
+        <section className="relative px-4 pb-20 pt-16 sm:px-6 sm:pb-28 sm:pt-20">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-0 h-[400px] w-[700px] -translate-x-1/2 rounded-full bg-red-600/10 blur-[120px]" />
+            <div className="absolute right-0 top-20 h-[300px] w-[300px] rounded-full bg-orange-500/8 blur-[90px]" />
           </div>
 
-          <div className="max-w-6xl mx-auto relative z-10 flex flex-col lg:grid lg:grid-cols-[1fr_1fr] gap-10 lg:gap-14 items-center">
-
-            {/* Left: copy */}
+          <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-10 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-14">
             <div className="w-full text-center lg:text-left">
-            
               <motion.h1
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
-                className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.05]"
+                className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl xl:text-7xl"
               >
                 Study YouTube playlists
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-300 to-amber-200 mt-1">
+                <span className="mt-1 block bg-gradient-to-r from-red-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
                   together, not alone.
                 </span>
               </motion.h1>
@@ -154,179 +299,337 @@ const LandingPage = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="text-base sm:text-lg text-white/60 mt-5 max-w-xl mx-auto lg:mx-0 leading-relaxed"
+                className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/60 sm:text-lg lg:mx-0"
               >
-                PrepTube turns any playlist into a shared learning room — progress tracking, live chat, streaks, and member invites all in one tab.
+                PrepTube turns any playlist into a shared learning room with progress tracking, live chat, streaks, private notes, and room invites all in one tab.
               </motion.p>
 
-              {/* CTA buttons */}
               <motion.div
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 mt-8"
+                className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:items-start lg:justify-start"
               >
                 <Link
-                  to={user ? "/courses" : "/login?redirect=/courses"}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold shadow-lg shadow-red-500/25 hover:scale-[1.02] active:scale-[0.98] transition-transform text-sm sm:text-base"
+                  to={heroCtaLink}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 px-6 py-3 text-sm font-semibold shadow-lg shadow-red-500/25 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:w-auto sm:text-base"
                 >
                   {user ? (
-                    <><Icon.Play /> Open My Courses</>
+                    <>
+                      <Icon.Play /> Open My Courses
+                    </>
                   ) : (
-                    <><Icon.Zap /> Start Learning</>
+                    <>
+                      <Icon.Zap /> Start Learning
+                    </>
                   )}
                 </Link>
                 <Link
                   to="/explore"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border border-white/10 bg-white/5 font-semibold text-white/75 hover:bg-white/10 active:bg-white/15 transition-colors text-sm sm:text-base"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 active:bg-white/15 sm:w-auto sm:text-base"
                 >
                   <Icon.Compass /> Explore Courses
                 </Link>
               </motion.div>
 
-              {/* Trust row */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.25 }}
-                className="flex items-center justify-center lg:justify-start gap-5 mt-8 text-xs text-white/35"
+                className="mt-8 flex items-center justify-center gap-5 text-xs text-white/35 lg:justify-start"
               >
-                <span className="flex items-center gap-1.5"><Icon.CheckCircle /><span>Free to start</span></span>
-                <span className="flex items-center gap-1.5"><Icon.Users /><span>Team rooms</span></span>
-                <span className="flex items-center gap-1.5"><Icon.Flame /><span>Streak rewards</span></span>
+                <span className="flex items-center gap-1.5">
+                  <Icon.CheckCircle />
+                  <span>Free to start</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Icon.Users />
+                  <span>Team rooms</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Icon.Flame />
+                  <span>Streak rewards</span>
+                </span>
               </motion.div>
             </div>
 
-            {/* Right: 16:9 video card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
               className="w-full"
             >
-              {/* Outer wrapper enforces 16:9 */}
-              <div className="relative w-full rounded-[24px] sm:rounded-[32px] overflow-hidden border border-white/10 bg-black/60 shadow-[0_40px_120px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+              <div
+                className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-black/60 shadow-[0_40px_120px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:rounded-[32px]"
                 style={{ aspectRatio: "16/9" }}
               >
-                {/*
-                  ── DROP YOUR VIDEO HERE ──────────────────────────────────────
-                  Replace the placeholder div below with:
-                    <video src="/your-demo.mp4" autoPlay muted loop playsInline
-                      className="w-full h-full object-cover" />
-                  OR for YouTube embed:
-                    <iframe src="https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1&loop=1"
-                      className="w-full h-full" frameBorder="0" allowFullScreen />
-                */}
-                <div className="w-full h-full bg-gradient-to-br from-red-900/30 via-zinc-900 to-amber-900/20 flex flex-col items-center justify-center gap-3 select-none">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-600/80 flex items-center justify-center shadow-lg shadow-red-500/30">
-                    <Icon.Play />
-                  </div>
-                  <p className="text-white/30 text-xs tracking-widest uppercase">Product demo video</p>
-                </div>
+                {demoVideoSrc ? (
+                  <>
+                    {/* Show image until video loads */}
+                    {!videoLoaded && (
+                      <img
+                        src={demoImg}
+                        alt="Demo Preview"
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    )}
 
-                {/* Top overlay: workspace label + live dot */}
-                <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-5 pt-3 sm:pt-4">
-                  <span className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-white/40 font-medium">
-                    Collaborative Workspace
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-400 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Live
-                  </span>
-                </div>
+                    <video
+                      ref={videoRef}
+                      src={demoVideoSrc}
+                      autoPlay
+                      muted={isMuted}
+                      loop
+                      playsInline
+                      preload="metadata"
+                      onCanPlay={() => setVideoLoaded(true)}
+                      className={`h-full w-full object-cover transition-opacity duration-500 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+                    />
 
-                {/* Bottom overlay: course info + stats */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 sm:px-5 pb-4 sm:pb-5 pt-10">
-                  <p className="text-white/45 text-[10px] sm:text-xs mb-0.5">Playlist</p>
-                  <h2 className="text-sm sm:text-base md:text-lg font-bold leading-tight mb-3">
-                    System Design Interview Course
-                  </h2>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    {stats.map((s) => (
-                      <div
-                        key={s.label}
-                        className="flex items-center gap-1.5 bg-white/8 border border-white/10 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2"
-                      >
-                        <span className={`${s.color} opacity-80`}>{s.icon}</span>
-                        <div>
-                          <p className={`text-sm sm:text-base font-black leading-none ${s.color}`}>{s.value}</p>
-                          <p className="text-[9px] sm:text-[10px] text-white/40 leading-none mt-0.5">{s.label}</p>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Extra tags */}
-                    <div className="ml-auto hidden sm:flex flex-col gap-1 text-right">
-                      <span className="text-[9px] text-white/35 flex items-center justify-end gap-1">
-                        <Icon.Users /><span>Keep the playlist, add accountability.</span>
-                      </span>
-                      <span className="text-[9px] text-white/35 flex items-center justify-end gap-1">
-                        <Icon.Zap /><span>Freemium rooms with upgrade-ready flows.</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                    {/* Mute/Unmute button */}
+                    <button
+                      onClick={() => setIsMuted(!isMuted)}
+                      className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10 hover:bg-black/80 transition"
+                    >
+                      {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                      {isMuted ? "Unmute" : "Mute"}
+                    </button>
+                  </>
+                ) : (
+                  <img
+                    src={demoImg}
+                    alt="Demo Preview"
+                    className="h-full w-full object-cover"
+                  />
+                )}
               </div>
             </motion.div>
           </div>
         </section>
 
-        {/* ── FEATURES ──────────────────────────────────────────────────────── */}
-        <section className="px-4 sm:px-6 pb-16 sm:pb-20">
-          <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
-            {features.map((f, i) => (
+        <section className="px-4 pb-16 sm:px-6 sm:pb-20">
+          <div className="mx-auto grid max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3">
+            {features.map((feature, index) => (
               <motion.article
-                key={f.title}
+                key={feature.title}
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.08 }}
-                className={`rounded-[24px] sm:rounded-[28px] border border-white/8 bg-gradient-to-br ${f.accent} p-5 sm:p-6 group hover:border-white/15 transition-colors`}
+                transition={{ delay: 0.1 + index * 0.08 }}
+                className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-white/20 transition-all duration-300 aspect-[16/9]"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${f.iconBg}`}>
-                    {f.icon}
+                {/* Image */}
+                <img
+                  src={feature.bgImage}
+                  alt={feature.title}
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+
+                {/* Subtle gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
+
+                {/* Content */}
+                <div className="relative z-10 h-full flex items-end justify-center p-0.5">
+                  <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg">
+
+                    {/* Icon (smaller) */}
+                    <div className={`flex h-7 w-7 items-center justify-center rounded-md ${feature.iconBg}`}>
+                      {feature.icon}
+                    </div>
+
+                    {/* Title (smaller) */}
+                    <h2 className="text-xs sm:text-sm font-medium text-white">
+                      {feature.title}
+                    </h2>
+
                   </div>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-white/30 font-medium pt-1">
-                    {f.tag}
-                  </span>
-                </div>
-                <h2 className="text-lg sm:text-xl font-bold mb-2 leading-tight">{f.title}</h2>
-                <p className="text-white/55 text-sm leading-relaxed">{f.description}</p>
-                <div className="mt-4 flex items-center gap-1 text-xs text-white/30 group-hover:text-white/50 transition-colors">
-                  <span>Learn more</span><Icon.ArrowRight />
                 </div>
               </motion.article>
             ))}
           </div>
         </section>
 
-        {/* ── SOCIAL PROOF ──────────────────────────────────────────────────── */}
-        <section className="px-4 sm:px-6 pb-20 sm:pb-28">
-          <div className="max-w-6xl mx-auto rounded-[24px] sm:rounded-[32px] border border-white/8 bg-gradient-to-br from-white/[0.05] to-white/[0.01] p-6 sm:p-8 md:p-10 flex flex-col lg:grid lg:grid-cols-[0.9fr_1.1fr] gap-8 items-center">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Icon.MessageSquare />
-                <p className="text-xs uppercase tracking-[0.18em] text-white/35">What people say</p>
+        <section className="px-4 pb-20 sm:px-6 sm:pb-24 overflow-hidden">
+  <div className="mx-auto max-w-6xl mb-8 text-center">
+    <div className="mb-3 flex items-center justify-center gap-2">
+      <Icon.MessageSquare />
+      <p className="text-xs uppercase tracking-[0.18em] text-white/35">What people say</p>
+    </div>
+    <h2 className="text-2xl font-black leading-tight sm:text-3xl md:text-4xl">
+      Built for when &quot;I&apos;ll watch it later&quot; stops working.
+    </h2>
+  </div>
+
+  {/* Row 1 — left to right */}
+  <div className="relative mb-4">
+    <div className="flex gap-4 animate-scroll-left w-max">
+      {[...reviews.slice(0, 6), ...reviews.slice(0, 6)].map((r, i) => (
+        <ReviewCard key={i} r={r} />
+      ))}
+    </div>
+  </div>
+
+  {/* Row 2 — right to left */}
+  <div className="relative">
+    <div className="flex gap-4 animate-scroll-right w-max">
+      {[...reviews.slice(6), ...reviews.slice(6)].map((r, i) => (
+        <ReviewCard key={i} r={r} />
+      ))}
+    </div>
+  </div>
+</section>
+
+        <section className="px-4 pb-24 sm:px-6 sm:pb-28">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-8 max-w-2xl">
+              <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-red-300/70">
+                <Icon.HelpCircle />
+                FAQ
               </div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight">
-                Built for when "I'll watch it later" stops working.
+              <h2 className="text-3xl font-black leading-tight sm:text-4xl">
+                Questions people ask before they start.
               </h2>
+              <p className="mt-3 text-sm leading-relaxed text-white/55 sm:text-base">
+                These answers match how PrepTube works right now, including rooms, topics, streaks, notes, and premium access.
+              </p>
             </div>
-            <div className="w-full grid sm:grid-cols-2 gap-3 sm:gap-4 text-sm text-white/65">
-              <div className="rounded-2xl bg-black/30 border border-white/8 p-4 sm:p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon.Users />
-                  <p className="text-white font-semibold text-xs">Learner</p>
-                </div>
-                <p className="leading-relaxed">"We finally finished a long course because everybody could see the progress."</p>
+
+            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-3">
+                {faqs.map((faq, index) => {
+                  const isOpen = openFaqIndex === index;
+                  return (
+                    <motion.article
+                      key={faq.question}
+                      initial={{ opacity: 0, y: 14 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, amount: 0.25 }}
+                      transition={{ delay: index * 0.04 }}
+                      className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03]"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaqIndex(isOpen ? -1 : index)}
+                        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
+                      >
+                        <span className="text-sm font-semibold leading-relaxed text-white sm:text-base">
+                          {faq.question}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full border border-white/10 bg-white/[0.04] p-2 text-white/60 transition-transform ${isOpen ? "rotate-180" : ""
+                            }`}
+                        >
+                          <Icon.ChevronDown />
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <div className="border-t border-white/8 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
+                          <p className="pt-4 text-sm leading-relaxed text-white/60">{faq.answer}</p>
+                        </div>
+                      )}
+                    </motion.article>
+                  );
+                })}
               </div>
-              <div className="rounded-2xl bg-black/30 border border-white/8 p-4 sm:p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon.Zap />
-                  <p className="text-white font-semibold text-xs">Team</p>
+
+              <motion.aside
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.25 }}
+                className="rounded-[28px] border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-5 sm:p-6"
+              >
+                <div className="mb-5 flex items-start gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/12 text-red-300">
+                    <Icon.Mail />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Still have a question?</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-white/50">
+                      Send it directly from the landing page and it will go to the owner.
+                    </p>
+                  </div>
                 </div>
-                <p className="leading-relaxed">"PrepTube feels like a lightweight course room instead of a lonely playlist tab."</p>
-              </div>
+
+                <form onSubmit={handleQuestionSubmit} className="space-y-3.5">
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={questionForm.name}
+                      onChange={handleQuestionChange("name")}
+                      placeholder="Your name"
+                      maxLength={80}
+                      className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/35"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={questionForm.email}
+                      onChange={handleQuestionChange("email")}
+                      placeholder="you@example.com"
+                      className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/35"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
+                      Question
+                    </label>
+                    <textarea
+                      value={questionForm.question}
+                      onChange={handleQuestionChange("question")}
+                      placeholder="Ask about rooms, premium, notes, streaks, chat, or anything else about PrepTube..."
+                      maxLength={2000}
+                      rows={6}
+                      className="w-full resize-none rounded-[24px] border border-white/10 bg-black/25 px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/35"
+                    />
+                    <div className="mt-2 text-right text-[11px] font-medium text-white/25">
+                      {questionForm.question.length}/2000
+                    </div>
+                  </div>
+
+                  {questionStatus.message && (
+                    <div
+                      className={`rounded-2xl border px-4 py-3 text-sm font-medium ${questionStatus.type === "success"
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+                        : "border-red-500/20 bg-red-500/10 text-red-200"
+                        }`}
+                    >
+                      {questionStatus.message}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={
+                      sendingQuestion ||
+                      !questionForm.name.trim() ||
+                      !questionForm.email.trim() ||
+                      !questionForm.question.trim()
+                    }
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-500/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {sendingQuestion ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Sending question...
+                      </>
+                    ) : (
+                      <>
+                        <Icon.Send />
+                        Send question
+                      </>
+                    )}
+                  </button>
+                </form>
+              </motion.aside>
             </div>
           </div>
         </section>

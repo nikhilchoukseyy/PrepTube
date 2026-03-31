@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
+import UpgradePromptBanner from "../components/UpgradePromptBanner";
 import { API_URL, authHeaders, getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { buildPlaylistTopicOptions, dedupePlaylistTopics } from "../utils/playlistTopics";
@@ -12,6 +13,7 @@ const ExplorePage = () => {
   const [availableTopics, setAvailableTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [upgradePrompt, setUpgradePrompt] = useState("");
   const [selectedTopics, setSelectedTopics] = useState([]);
   const navigate = useNavigate();
 
@@ -62,11 +64,15 @@ const ExplorePage = () => {
   const handleJoin = async (playlistId) => {
     if (!getToken()) { requireAuthRedirect(navigate, "/explore"); return; }
     try {
+      setUpgradePrompt("");
       const res = await axios.post(`${API_URL}/playlists/join`, { playlistId }, { headers: authHeaders() });
       navigate(`/video/${res.data.playlistId || playlistId}`);
     } catch (err) {
       const payload = err.response?.data;
-      if (payload?.error === "MEMBER_LIMIT_REACHED") { navigate("/pricing", { state: { upgradePrompt: payload.message } }); return; }
+      if (payload?.error === "MEMBER_LIMIT_REACHED") {
+        setUpgradePrompt("This room is full on the free plan.");
+        return;
+      }
       setError(payload?.message || "Unable to join this playlist");
     }
   };
@@ -123,6 +129,8 @@ const ExplorePage = () => {
             })}
           </div>
         </section>
+
+        {upgradePrompt && <UpgradePromptBanner message={upgradePrompt} />}
 
         {error && (
           <div className="flex items-center gap-2 text-sm text-red-300 font-medium bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-3">

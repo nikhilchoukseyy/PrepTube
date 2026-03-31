@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
+import UpgradePromptBanner from "../components/UpgradePromptBanner";
 import { API_URL, authHeaders, getStoredUser, getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { dedupePlaylistTopics } from "../utils/playlistTopics";
@@ -64,6 +65,7 @@ const CoursesPage = () => {
   const [joinToken, setJoinToken] = useState("");
   const [joining, setJoining] = useState(false);
   const [deletingId, setDeletingId] = useState("");
+  const [upgradePrompt, setUpgradePrompt] = useState("");
   const navigate = useNavigate();
   const currentUser = getStoredUser();
 
@@ -93,7 +95,7 @@ const CoursesPage = () => {
   const handleCreatePlaylist = async (event) => {
     event.preventDefault();
     if (!playlistUrl.trim()) return;
-    setCreating(true); setError("");
+    setCreating(true); setError(""); setUpgradePrompt("");
     try {
       await axios.post(`${API_URL}/playlists/create`, { playlistUrl }, { headers: authHeaders() });
       setPlaylistUrl(""); fetchPlaylists();
@@ -104,7 +106,7 @@ const CoursesPage = () => {
 
   const handleJoinPlaylist = async () => {
     if (!joinToken.trim()) return;
-    setJoining(true); setError("");
+    setJoining(true); setError(""); setUpgradePrompt("");
     try {
       const res = await axios.post(`${API_URL}/playlists/join`, { token: joinToken.trim() }, { headers: authHeaders() });
       setJoinToken("");
@@ -112,14 +114,17 @@ const CoursesPage = () => {
       else fetchPlaylists();
     } catch (err) {
       const payload = err.response?.data;
-      if (payload?.error === "MEMBER_LIMIT_REACHED") { navigate("/pricing", { state: { upgradePrompt: payload.message } }); return; }
+      if (payload?.error === "MEMBER_LIMIT_REACHED") {
+        setUpgradePrompt("This room is full on the free plan.");
+        return;
+      }
       setError(payload?.message || "Failed to join playlist");
     } finally { setJoining(false); }
   };
 
   const handleDeletePlaylist = async (playlistId) => {
     if (!window.confirm("Delete this playlist for everyone?")) return;
-    setDeletingId(playlistId); setError("");
+    setDeletingId(playlistId); setError(""); setUpgradePrompt("");
     try {
       await axios.delete(`${API_URL}/playlists/${playlistId}`, { headers: authHeaders() });
       setPlaylists((cur) => cur.filter((p) => p.playlistId !== playlistId));
@@ -179,6 +184,8 @@ const CoursesPage = () => {
               <IC.Link2 className="w-3.5 h-3.5 text-white/40" /> Join a room
             </span>
           </div>
+
+          {upgradePrompt && <UpgradePromptBanner message={upgradePrompt} className="mb-4" />}
 
           {/* Single unified row */}
           <div className="flex flex-col sm:flex-row items-stretch gap-2.5">

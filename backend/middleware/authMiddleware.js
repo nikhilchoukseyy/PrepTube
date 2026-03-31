@@ -1,4 +1,4 @@
-﻿import jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { buildAvatarUrl, generateUniqueUsername } from "../utils/userIdentity.js";
 
@@ -24,6 +24,21 @@ const protect = async (req, res, next) => {
         user.avatar = buildAvatarUrl(user.username || user.name || user.email);
         didMutate = true;
       }
+      const hasPremiumFlag = user.isPremium === true || user.plan === "premium";
+      if (hasPremiumFlag) {
+        const premiumExpiresAt = user.premiumExpiresAt ? new Date(user.premiumExpiresAt) : null;
+        const premiumStillActive =
+          premiumExpiresAt &&
+          !Number.isNaN(premiumExpiresAt.getTime()) &&
+          premiumExpiresAt.getTime() > Date.now();
+
+        if (!premiumStillActive) {
+          user.isPremium = false;
+          user.plan = "free";
+          user.premiumExpiresAt = null;
+          didMutate = true;
+        }
+      }
       if (didMutate) {
         await user.save();
       }
@@ -40,4 +55,3 @@ const protect = async (req, res, next) => {
 };
 
 export { protect };
-

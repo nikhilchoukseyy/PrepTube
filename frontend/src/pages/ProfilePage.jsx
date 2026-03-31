@@ -117,6 +117,9 @@ const ProfilePage = () => {
 
   const presetAvatars = buildPresetAvatars(username || user?.name || user?.email);
   const planColor = user?.plan === "premium" ? "text-amber-300" : "text-white/50";
+  const premiumExpiryLabel = user?.plan === "premium" && user?.premiumExpiresAt
+    ? new Date(user.premiumExpiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : "";
 
   return (
     <div className="min-h-screen bg-[#080808] text-white">
@@ -144,6 +147,11 @@ const ProfilePage = () => {
             <IC.Crown className="w-3.5 h-3.5 text-amber-400" />
             <span className={`text-xs font-semibold uppercase tracking-wider ${planColor}`}>{user?.plan || "free"}</span>
           </div>
+          {premiumExpiryLabel && (
+            <p className="mt-2 text-xs text-amber-200/75 font-medium">
+              Active until {premiumExpiryLabel}
+            </p>
+          )}
 
           <div className="mt-6 w-full space-y-2">
             <button

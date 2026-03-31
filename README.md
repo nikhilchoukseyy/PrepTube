@@ -1,257 +1,362 @@
-﻿# PrepTube
+# PrepTube
 
-PrepTube is a collaborative learning platform built around YouTube playlists. Users can import playlists, track watch progress, study together in shared rooms, and chat in real time instead of learning alone in separate tabs.
+PrepTube turns a YouTube playlist into a shared study room. A learner can import a playlist, invite collaborators, track progress, keep private notes per video, build streaks, chat in real time, and upgrade the room owner to unlock larger groups.
 
-> Product stage: pre-launch MVP
+Status: pre-launch MVP
 
-## Overview
+## What The App Does
 
 PrepTube currently supports:
 
-- Google OAuth and optional email/password auth
-- playlist import from the YouTube Data API
-- a marketing landing page at `/`
-- a dedicated course dashboard at `/courses`
-- a public explore feed at `/explore`
-- a pricing page at `/pricing`
-- invite-link joining through `/join/:token`
-- shared playlist workspaces at `/video/:id`
-- per-user progress tracking
-- per-playlist streak tracking
-- persistent invite tokens
-- public/private playlist visibility
-- member leave/remove flows
-- text, image, and voice chat
-- freemium member-limit enforcement
+- Google OAuth sign-in
+- Email/password sign-up and login
+- Password reset by email
+- Profile editing with uploaded or generated avatars
+- YouTube playlist import through the YouTube Data API
+- One collaborative room per imported YouTube playlist
+- Private and public playlist visibility
+- Topic tagging for Explore discovery
+- Invite-link joining through persistent tokens
+- Public Explore feed with topic filters
+- Video completion tracking per user
+- Private per-video notes per user
+- Per-playlist streak tracking based on study time
+- Real-time room chat with text, image, and voice messages
+- Premium upgrade flow with Razorpay
+- Owner-managed collaborators, visibility, and invite regeneration
+- Account deletion with cleanup of owned content
 
-## Business Model
+## Product Rules
 
-PrepTube uses a freemium collaboration model:
+- Each imported YouTube playlist maps to a single PrepTube room. The backend prevents duplicate imports for the same YouTube `playlistId`.
+- Free rooms allow up to 6 total people including the owner, which means up to 5 collaborators.
+- If the owner has an active premium plan, new joins are not blocked by the free member limit.
+- If premium expires, existing members keep access; the join limit applies to future joins.
+- Public playlists appear in Explore, but the workspace itself still requires joining the room first.
+- Video notes are private to the author even inside a shared playlist.
+- Streaks are tracked per user, per playlist, using the `Asia/Kolkata` timezone.
+- A streak day counts when the user logs at least 30 minutes in that playlist on that date.
 
-- Free plan: up to 5 collaborators per playlist room
-- Premium plan: unlimited collaborators per playlist room
-
-The backend enforces this limit when a user joins a playlist. If a free playlist has already reached the member cap, the API returns a `403` with `MEMBER_LIMIT_REACHED`, and the frontend redirects the user to `/pricing` with an upgrade prompt.
-
-## Current Routes
+## Tech Stack
 
 ### Frontend
 
-| Route | Purpose |
-|---|---|
-| `/` | Marketing landing page |
-| `/courses` | Authenticated user's playlist dashboard |
-| `/explore` | Public playlist feed |
-| `/pricing` | Freemium pricing page |
-| `/join/:token` | Invite-link join flow |
-| `/login` | Login page |
-| `/register` | Register page |
-| `/auth/callback` | OAuth callback handler |
-| `/video/:id` | Shared playlist workspace |
-| `/profile` | Profile settings |
+- React 19
+- Vite
+- React Router
+- Tailwind CSS 4
+- Axios
+- Socket.IO client
+- Browser `MediaRecorder` for voice messages
+- `browser-image-compression` for image uploads
+- Razorpay Checkout script
 
-### Backend API
+### Backend
 
-#### Auth: `/api/auth`
+- Node.js
+- Express 5
+- MongoDB
+- Mongoose
+- Passport Google OAuth 2.0
+- JWT authentication
+- Socket.IO
+- Razorpay SDK
+- Nodemailer
+- Axios
+- Cloudinary upload API
 
-- `GET /google`
-- `GET /google/callback`
-- `GET /protected`
+## High-Level Architecture
 
-#### Users: `/api/users`
+```mermaid
+flowchart LR
+  U[Browser / React App]
+  API[Express API + HTTP Server]
+  WS[Socket.IO Layer]
+  DB[(MongoDB)]
+  YT[YouTube Data API]
+  GG[Google OAuth]
+  CL[Cloudinary]
+  RZ[Razorpay]
+  EM[Gmail / Nodemailer]
 
-- `POST /register`
-- `POST /login`
-- `GET /me`
-- `PATCH /profile`
-
-#### Playlists: `/api/playlists`
-
-- `POST /create`
-- `GET /my-playlists`
-- `GET /explore`
-- `GET /:playlistId/details`
-- `POST /mark`
-- `POST /unmark`
-- `POST /join`
-- `GET /:playlistId/chats`
-- `POST /:playlistId/invite`
-- `POST /:playlistId/leave`
-- `DELETE /:playlistId/members/:userId`
-- `PATCH /:playlistId/visibility`
-- `POST /:playlistId/time`
-- `POST /:playlistId/chat/upload`
-- `DELETE /:playlistId`
-
-## Implemented Features
-
-### Authentication and Identity
-
-- Google OAuth is supported through Passport
-- email/password register and login are also mounted
-- every user has:
-  - `username`
-  - `avatar`
-  - `plan` (`free` or `premium`)
-- missing usernames and avatars are backfilled automatically during auth
-- profile updates are supported from the UI and API
-
-### Courses and Collaboration
-
-- users can import a YouTube playlist into PrepTube
-- each playlist becomes a collaborative room
-- owners can generate a persistent invite token
-- owners can regenerate the token at any time
-- users can join through pasted token, invite link, or `/join/:token`
-- members can leave a playlist
-- owners can remove members
-- owners can toggle playlists between public and private
-- public playlists appear in Explore and can be joined directly
-
-### Progress and Streaks
-
-- users can mark and unmark completed videos
-- playlist detail responses include personalized completion state
-- per-user playlist streaks are tracked in `Asia/Kolkata`
-- workspace time is logged periodically and on unload
-- a day counts toward the streak once the user reaches 30 minutes in that playlist on that day
-
-### Chat
-
-- chat history is stored in MongoDB
-- live updates are delivered via Socket.io
-- sender payloads now include username and avatar
-- supported message types:
-  - `text`
-  - `image`
-  - `voice`
-- the frontend supports:
-  - image upload
-  - browser voice recording with `MediaRecorder`
-  - inline image rendering
-  - inline audio playback
-
-## Architecture
-
-### High-Level System
-
-```text
-+-----------------------------------------------------------+
-| Frontend: React + Vite                                    |
-| - Landing page                                            |
-| - Courses dashboard                                       |
-| - Explore feed                                            |
-| - Pricing page                                            |
-| - Profile page                                            |
-| - Join page                                               |
-| - Video workspace                                         |
-+-------------------+---------------------------+-----------+
-                    |                           |
-                    | HTTP/JSON via Axios       | WebSocket via Socket.io
-                    |                           |
-+-------------------v---------------------------v-----------+
-| Backend: Express + Node HTTP server                       |
-| - OAuth routes                                            |
-| - User profile/auth APIs                                  |
-| - Playlist APIs                                           |
-| - Freemium enforcement                                    |
-| - Streak logging                                          |
-| - Chat persistence and socket delivery                    |
-| - Media upload endpoint                                   |
-+-------------------+---------------------------------------+
-                    |
-                    | Mongoose ODM
-                    |
-+-------------------v---------------------------------------+
-| MongoDB                                                   |
-| - users                                                   |
-| - playlists                                               |
-| - chatmessages                                            |
-+-----------------------------------------------------------+
-
-External services:
-- Google OAuth 2.0
-- YouTube Data API v3
-- Cloudinary (for media uploads when configured)
+  U -->|HTTP JSON + JWT| API
+  U -->|WebSocket + JWT| WS
+  API --> DB
+  WS --> DB
+  API --> YT
+  API --> GG
+  API --> CL
+  API --> RZ
+  API --> EM
 ```
 
-### Frontend Structure
+## Runtime Structure
 
-- [App.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/App.jsx)
-- [Navbar.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/components/Navbar.jsx)
-- [LandingPage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/LandingPage.jsx)
-- [CoursesPage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/CoursesPage.jsx)
-- [ExplorePage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/ExplorePage.jsx)
-- [PricingPage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/PricingPage.jsx)
-- [JoinPage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/JoinPage.jsx)
-- [VideoPage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/VideoPage.jsx)
-- [ProfilePage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/pages/ProfilePage.jsx)
-- [ChatMessage.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/components/ChatMessage.jsx)
-- [StreakBadge.jsx](C:/Users/welcome/projects/PrepTube/frontend/src/components/StreakBadge.jsx)
-- [auth.js](C:/Users/welcome/projects/PrepTube/frontend/src/utils/auth.js)
-- [meta.js](C:/Users/welcome/projects/PrepTube/frontend/src/utils/meta.js)
+### Frontend runtime
 
-### Backend Structure
+- `BrowserRouter` defines all app routes.
+- Authentication state is stored in `localStorage` as `token` and `user`.
+- Protected screens redirect unauthenticated users to `/login?redirect=...`.
+- The workspace page opens a Socket.IO connection after the playlist and initial chat history load.
+- Razorpay checkout is loaded from the script tag in `frontend/index.html`.
 
-- [server.js](C:/Users/welcome/projects/PrepTube/backend/server.js)
-- [passport.js](C:/Users/welcome/projects/PrepTube/backend/config/passport.js)
-- [authMiddleware.js](C:/Users/welcome/projects/PrepTube/backend/middleware/authMiddleware.js)
-- [userController.js](C:/Users/welcome/projects/PrepTube/backend/controllers/userController.js)
-- [playlistController.js](C:/Users/welcome/projects/PrepTube/backend/controllers/playlistController.js)
-- [authRoutes.js](C:/Users/welcome/projects/PrepTube/backend/routes/authRoutes.js)
-- [userRoutes.js](C:/Users/welcome/projects/PrepTube/backend/routes/userRoutes.js)
-- [playlistRoutes.js](C:/Users/welcome/projects/PrepTube/backend/routes/playlistRoutes.js)
-- [User.js](C:/Users/welcome/projects/PrepTube/backend/models/User.js)
-- [Playlist.js](C:/Users/welcome/projects/PrepTube/backend/models/Playlist.js)
-- [ChatMessage.js](C:/Users/welcome/projects/PrepTube/backend/models/ChatMessage.js)
-- [socket/index.js](C:/Users/welcome/projects/PrepTube/backend/socket/index.js)
-- [userIdentity.js](C:/Users/welcome/projects/PrepTube/backend/utils/userIdentity.js)
-- [playlistAccess.js](C:/Users/welcome/projects/PrepTube/backend/utils/playlistAccess.js)
+### Backend runtime
+
+- `backend/server.js` boots Express, connects MongoDB, configures CORS/compression/JSON parsing, and mounts routes.
+- The HTTP server is shared with Socket.IO.
+- `protect` middleware verifies JWTs and also normalizes user plan/avatar/username state.
+- `planMiddleware` blocks joins when a free room is already full.
+- Controllers own business logic.
+- Mongoose models store users, playlists, and chat messages.
+
+## Core Data Flow
+
+### 1. Authentication flow
+
+#### Google OAuth
+
+```text
+User clicks Continue with Google
+-> browser navigates to /api/auth/google?redirect=...
+-> Passport starts Google OAuth
+-> backend finds or creates user
+-> backend signs JWT
+-> backend redirects to /auth/callback?token=...&redirect=...
+-> frontend fetches /api/users/me with that token
+-> frontend stores token + user in localStorage
+-> frontend sends user to the requested route
+```
+
+#### Email/password auth
+
+```text
+User registers or logs in
+-> frontend POSTs /api/users/register or /api/users/login
+-> backend validates credentials
+-> backend returns serialized user + JWT
+-> frontend stores auth in localStorage
+-> protected screens use Bearer token on later requests
+```
+
+Important auth notes:
+
+- Manual registration only allows Gmail or Google Mail addresses.
+- Google accounts can be linked to an existing email user.
+- Missing usernames and avatars are auto-generated on login/auth middleware.
+
+### 2. Playlist import flow
+
+```text
+User pastes a YouTube playlist URL on /courses
+-> frontend POST /api/playlists/create
+-> backend extracts the YouTube list id
+-> backend fetches playlist metadata from YouTube
+-> backend fetches playlist items, paginated
+-> backend fetches video durations in batches
+-> backend stores normalized videos in MongoDB
+-> backend creates a persistent invite token
+-> frontend refreshes the course library
+```
+
+Imported playlist documents store:
+
+- room ownership and collaborators
+- visibility and topics
+- normalized video metadata
+- per-user progress
+- per-user private notes
+- invite token
+
+### 3. Explore and public visibility flow
+
+```text
+Owner edits topics and makes playlist public
+-> frontend PATCH /api/playlists/:playlistId/visibility
+-> backend requires owner access
+-> backend normalizes topics
+-> backend rejects public visibility if no topics are selected
+-> playlist appears in /api/playlists/explore
+-> frontend Explore screen filters public rooms by topics
+```
+
+### 4. Invite and join flow
+
+```text
+Owner generates invite link
+-> frontend POST /api/playlists/:playlistId/invite
+-> backend returns /join/:token link
+
+User joins through token, invite URL, or Explore
+-> frontend POST /api/playlists/join
+-> middleware resolves invite token or public playlist id
+-> middleware enforces member limit unless owner has active premium
+-> backend adds user to members[]
+-> frontend redirects to /video/:playlistId
+```
+
+### 5. Workspace, progress, notes, and streak flow
+
+```text
+User opens /video/:id
+-> frontend GET /api/playlists/:playlistId/details
+-> backend returns videos, access info, stats, invite token for owner, and requester's progress
+-> frontend renders the shared workspace
+
+User marks a video complete
+-> frontend POST /api/playlists/mark or /unmark
+-> backend updates progress[user].completedVideos
+-> frontend reloads playlist details
+
+User writes a note
+-> frontend PUT /api/playlists/:playlistId/videos/:videoId/note
+-> backend stores or clears the note inside playlist.videoNotes
+-> note is returned only as part of the current user's video state
+
+User stays active in workspace
+-> frontend accumulates watched time locally
+-> frontend POST /api/playlists/:playlistId/time every 5 minutes and on unload/visibility change
+-> backend merges time into progress[user].dailyMinutes
+-> backend recalculates currentStreak and longestStreak
+```
+
+### 6. Chat and media flow
+
+```text
+Workspace loads
+-> frontend GET /api/playlists/:playlistId/chats for latest history
+-> frontend opens Socket.IO with JWT in handshake auth
+-> client emits joinRoom
+-> socket server verifies playlist access
+
+Text chat
+-> client emits chatMessage
+-> socket server validates access and payload
+-> chat is stored in ChatMessage collection
+-> server emits newMessage to the playlist room
+
+Image or voice chat
+-> frontend uploads file to /api/playlists/:playlistId/chat/upload
+-> backend uploads media to Cloudinary
+-> backend returns mediaUrl + messageType
+-> frontend emits chatMessage with that mediaUrl
+-> socket server persists and broadcasts message
+```
+
+### 7. Payment and plan flow
+
+```text
+User clicks Subscribe on /pricing
+-> frontend POST /api/payment/create-order
+-> backend creates Razorpay order
+-> frontend opens Razorpay Checkout
+-> Razorpay returns payment response to frontend
+-> frontend POST /api/payment/verify
+-> backend verifies HMAC signature
+-> backend upgrades user to premium and extends premiumExpiresAt
+-> frontend stores updated user
+-> success page reads payment details from navigation state or sessionStorage
+```
+
+Important payment note:
+
+- Payment records are currently stored in an in-memory `Map` in `paymentController.js`, not in MongoDB. That means order verification state is not durable across server restarts or horizontal scaling.
+
+### 8. Password reset and account deletion flow
+
+```text
+Forgot password
+-> frontend POST /api/auth/forgot-password
+-> backend creates a hashed reset token with 15-minute expiry
+-> backend emails reset link using CLIENT_URL
+
+Reset password
+-> frontend POST /api/auth/reset-password/:token
+-> backend verifies hashed token and expiry
+-> backend replaces password and clears token fields
+
+Delete account
+-> frontend DELETE /api/users/me
+-> backend deletes owned playlists and their chats
+-> backend removes membership, progress, notes, and direct chat records
+-> backend deletes the user document
+```
 
 ## Data Model
 
-### User
+### `User`
 
-Stored in [User.js](C:/Users/welcome/projects/PrepTube/backend/models/User.js).
+Stored in `backend/models/User.js`.
 
 Key fields:
 
 - `name`
 - `email`
 - `username`
-- `avatar`
 - `password`
 - `googleId`
+- `avatar`
 - `role`
+- `isPremium`
 - `plan`
-- `playlists`
+- `premiumExpiresAt`
+- `passwordResetToken`
+- `passwordResetExpires`
 
-### Playlist
+Behavioral notes:
 
-Stored in [Playlist.js](C:/Users/welcome/projects/PrepTube/backend/models/Playlist.js).
+- Passwords are hashed with `bcryptjs` on save.
+- Premium status is treated as active only if `premiumExpiresAt` is in the future.
+- Avatar defaults to DiceBear if not supplied.
+
+### `Playlist`
+
+Stored in `backend/models/Playlist.js`.
 
 Key fields:
 
 - `playlistId`
 - `title`
 - `owner`
-- `members`
+- `members[]`
 - `isPublic`
+- `topics[]`
 - `inviteToken`
 - `videos[]`
+- `videoNotes[]`
 - `progress[]`
+- `createdAt`
+- `updatedAt`
 
-Progress stores:
+Embedded structures:
 
-- `completedVideos[]`
-- `currentStreak`
-- `longestStreak`
-- `lastStreakDate`
-- `dailyMinutes[]`
+- `videos[]`
+  - `videoId`
+  - `title`
+  - `thumbnail`
+  - `duration`
+  - `durationSeconds`
+- `videoNotes[]`
+  - `videoId`
+  - `user`
+  - `content`
+  - `updatedAt`
+- `progress[]`
+  - `user`
+  - `completedVideos[]`
+  - `currentStreak`
+  - `longestStreak`
+  - `lastStreakDate`
+  - `dailyMinutes[]`
 
-### ChatMessage
+Behavioral notes:
 
-Stored in [ChatMessage.js](C:/Users/welcome/projects/PrepTube/backend/models/ChatMessage.js).
+- Progress and notes are embedded inside the playlist document, not stored as separate collections.
+- Playlist state is normalized before access in several controller paths to dedupe members, progress rows, notes, and topics.
+- There is one unique playlist document per YouTube playlist id.
+
+### `ChatMessage`
+
+Stored in `backend/models/ChatMessage.js`.
 
 Key fields:
 
@@ -260,79 +365,273 @@ Key fields:
 - `message`
 - `messageType`
 - `mediaUrl`
-- timestamps
+- `createdAt`
+- `updatedAt`
 
-## Data Flow
+Behavioral notes:
 
-### OAuth Login Flow
+- Chat history is persisted separately from the playlist document.
+- REST history fetch currently returns the latest 50 messages.
+
+## API Surface
+
+### Frontend routes
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Marketing landing page |
+| `/courses` | Authenticated playlist library and import/join entry |
+| `/explore` | Public playlist discovery |
+| `/pricing` | Free vs premium plan page |
+| `/success` | Payment success receipt |
+| `/join/:token` | Invite-link join handler |
+| `/login` | Email login + Google entry |
+| `/register` | Email signup + Google entry |
+| `/auth/callback` | OAuth token bootstrap page |
+| `/video/:id` | Shared playlist workspace |
+| `/profile` | Profile and account settings |
+| `/forgot-password` | Reset request form |
+| `/reset-password/:token` | Password reset form |
+
+### Backend routes
+
+#### Auth: `/api/auth`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/google` | Start Google OAuth |
+| `GET` | `/google/callback` | Complete Google OAuth |
+| `GET` | `/protected` | Example protected endpoint |
+| `POST` | `/forgot-password` | Send reset email |
+| `POST` | `/reset-password/:token` | Complete password reset |
+
+#### Users: `/api/users`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/register` | Email signup |
+| `POST` | `/login` | Email login |
+| `GET` | `/me` | Get current user |
+| `PATCH` | `/profile` | Update username/avatar |
+| `DELETE` | `/me` | Delete account |
+
+#### Playlists: `/api/playlists`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/explore` | Public playlists + topic options |
+| `POST` | `/create` | Import YouTube playlist |
+| `GET` | `/my-playlists` | Rooms owned by or joined by the user |
+| `POST` | `/mark` | Mark video complete |
+| `POST` | `/unmark` | Unmark video |
+| `POST` | `/join` | Join by invite token or public playlist id |
+| `GET` | `/:playlistId/details` | Workspace payload |
+| `PUT` | `/:playlistId/videos/:videoId/note` | Save or clear private note |
+| `GET` | `/:playlistId/chats` | Recent chat history |
+| `POST` | `/:playlistId/invite` | Generate or regenerate invite token |
+| `POST` | `/:playlistId/leave` | Leave room |
+| `DELETE` | `/:playlistId/members/:userId` | Remove member |
+| `PATCH` | `/:playlistId/visibility` | Update visibility and topics |
+| `POST` | `/:playlistId/time` | Log active study time |
+| `POST` | `/:playlistId/chat/upload` | Upload image or voice media |
+| `DELETE` | `/:playlistId` | Delete playlist |
+
+#### Payments: `/api/payment`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/create-order` | Create Razorpay order |
+| `POST` | `/verify` | Verify payment and activate premium |
+
+## Project Structure
 
 ```text
-User clicks Google sign-in
--> frontend sends browser to /api/auth/google?redirect=...
--> backend starts OAuth
--> backend creates or updates user
--> backend signs JWT
--> backend redirects to /auth/callback with token + user payload
--> frontend stores auth state in localStorage
--> frontend redirects to requested route
+PrepTube/
+├─ backend/
+│  ├─ config/
+│  │  ├─ db.js
+│  │  └─ passport.js
+│  ├─ controllers/
+│  │  ├─ paymentController.js
+│  │  ├─ playlistController.js
+│  │  └─ userController.js
+│  ├─ middleware/
+│  │  ├─ authMiddleware.js
+│  │  └─ planMiddleware.js
+│  ├─ models/
+│  │  ├─ ChatMessage.js
+│  │  ├─ Playlist.js
+│  │  └─ User.js
+│  ├─ routes/
+│  │  ├─ authRoutes.js
+│  │  ├─ paymentRoutes.js
+│  │  ├─ playlistRoutes.js
+│  │  └─ userRoutes.js
+│  ├─ socket/
+│  │  └─ index.js
+│  ├─ utils/
+│  │  ├─ emailService.js
+│  │  ├─ playlistAccess.js
+│  │  ├─ playlistTopics.js
+│  │  └─ userIdentity.js
+│  ├─ package.json
+│  └─ server.js
+├─ frontend/
+│  ├─ src/
+│  │  ├─ components/
+│  │  │  ├─ ChatMessage.jsx
+│  │  │  ├─ ForgotPasswordPage.jsx
+│  │  │  ├─ Loader.jsx
+│  │  │  ├─ Navbar.jsx
+│  │  │  ├─ ResetPasswordPage.jsx
+│  │  │  ├─ StreakBadge.jsx
+│  │  │  └─ UpgradePromptBanner.jsx
+│  │  ├─ pages/
+│  │  │  ├─ AuthCallback.jsx
+│  │  │  ├─ CoursesPage.jsx
+│  │  │  ├─ ExplorePage.jsx
+│  │  │  ├─ JoinPage.jsx
+│  │  │  ├─ LandingPage.jsx
+│  │  │  ├─ LoginPage.jsx
+│  │  │  ├─ PricingPage.jsx
+│  │  │  ├─ ProfilePage.jsx
+│  │  │  ├─ RegisterPage.jsx
+│  │  │  ├─ SuccessPage.jsx
+│  │  │  ├─ VideoPage.jsx
+│  │  │  └─ Icons.jsx
+│  │  ├─ utils/
+│  │  │  ├─ auth.js
+│  │  │  ├─ avatarUpload.js
+│  │  │  ├─ meta.js
+│  │  │  ├─ payment.js
+│  │  │  └─ playlistTopics.js
+│  │  ├─ App.jsx
+│  │  ├─ main.jsx
+│  │  ├─ App.css
+│  │  └─ index.css
+│  ├─ index.html
+│  ├─ package.json
+│  ├─ tailwind.config.js
+│  ├─ vite.config.js
+│  └─ vercel.json
+├─ index.html
+└─ README.md
 ```
 
-### Playlist Import Flow
+## How The Frontend Is Organized
 
-```text
-User pastes YouTube playlist URL on /courses
--> frontend POST /api/playlists/create
--> backend extracts playlistId from YouTube URL
--> backend fetches playlist metadata and items from YouTube API
--> backend fetches durations for each video
--> backend stores normalized playlist document in MongoDB
--> frontend refreshes dashboard
-```
+### Routing
 
-### Join Flow
+- `frontend/src/App.jsx` lazy-loads the major pages.
+- Route-level pages own data fetching and orchestration.
+- Shared UI elements such as navbar, chat message rendering, and streak badge live under `components/`.
 
-```text
-User opens /join/:token or clicks Join on Explore
--> frontend POST /api/playlists/join
--> backend resolves token or public playlistId
--> backend checks free-tier member limit
--> backend adds user to members[] if allowed
--> frontend redirects to /video/:id
-```
+### Frontend page responsibilities
 
-### Streak Flow
+- `LandingPage.jsx`
+  - product marketing and positioning
+- `CoursesPage.jsx`
+  - library view
+  - playlist import
+  - join by token or link
+  - delete owned room
+- `ExplorePage.jsx`
+  - public feed
+  - topic filtering
+  - public room join
+- `VideoPage.jsx`
+  - workspace shell
+  - selected video state
+  - completion toggles
+  - private notes
+  - study-time tracking
+  - live chat
+  - invite management
+  - visibility/topic management
+  - member management
+- `PricingPage.jsx`
+  - plan comparison and checkout launch
+- `SuccessPage.jsx`
+  - payment receipt view
+- `ProfilePage.jsx`
+  - profile editing
+  - avatar processing
+  - logout
+  - account deletion
+- `AuthCallback.jsx`
+  - OAuth bootstrap
 
-```text
-User opens playlist workspace
--> frontend starts session timer
--> frontend POSTs time in intervals and on unload
--> backend adds minutes to today's entry in progress.dailyMinutes
--> backend recalculates current and longest streak
--> frontend updates streak badge
-```
+### Frontend utilities
 
-### Chat Flow
+- `auth.js`
+  - token storage
+  - user storage
+  - auth headers
+  - redirect helpers
+- `payment.js`
+  - create order
+  - open Razorpay
+  - verify payment
+  - cache latest payment in `sessionStorage`
+- `avatarUpload.js`
+  - client-side image resize and conversion for profile photos
+- `playlistTopics.js`
+  - topic normalization and UI helpers
 
-```text
-User opens playlist workspace
--> frontend loads chat history via GET /:playlistId/chats
--> frontend opens Socket.io connection with JWT
--> socket joins playlist room
--> user sends text/image/voice message
--> backend validates access and stores ChatMessage
--> backend emits newMessage with sender username/avatar and payload
--> clients append message in real time
-```
+## How The Backend Is Organized
+
+### Server composition
+
+- `server.js`
+  - loads env vars
+  - connects MongoDB
+  - creates Express app + HTTP server
+  - attaches Socket.IO
+  - configures CORS and compression
+  - mounts route modules
+
+### Route/controller split
+
+- Route files define endpoint paths and middleware.
+- Controllers contain validation, external API calls, and MongoDB persistence.
+- Shared rules are pulled into utilities and middleware instead of duplicated across controllers.
+
+### Utility responsibilities
+
+- `userIdentity.js`
+  - username generation
+  - avatar defaults
+  - effective plan computation
+  - serialized user output
+  - timezone date keys
+- `playlistAccess.js`
+  - owner/member/access checks
+- `playlistTopics.js`
+  - topic normalization
+  - default topic catalog
+  - Explore filter options
+- `emailService.js`
+  - welcome email
+  - password reset email
+
+### Socket responsibilities
+
+- Authenticates via JWT from `socket.handshake.auth.token`
+- Joins the user to a playlist room after access verification
+- Persists each chat message before broadcasting
+- Emits `newMessage` events to all connected room clients
 
 ## Environment Variables
 
-### Backend: `backend/.env`
+### Backend `.env`
 
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
+
 FRONTEND_URL=http://localhost:5173
+CLIENT_URL=http://localhost:5173
 
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -340,18 +639,27 @@ GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 
 YOUTUBE_API_KEY=your_youtube_data_api_key
 
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+EMAIL_USER=your_gmail_address
+EMAIL_PASS=your_gmail_app_password
 ```
 
 Notes:
 
-- `FRONTEND_URL` may be comma-separated for multiple allowed origins
-- Cloudinary vars are required if you want image and voice uploads to work
-- invite links are generated from the first URL in `FRONTEND_URL`
+- `FRONTEND_URL` can be comma-separated for multiple allowed origins.
+- The first value in `FRONTEND_URL` is used for OAuth redirect completion and invite-link generation.
+- `CLIENT_URL` is used inside password reset emails.
+- Cloudinary variables are required for image and voice chat uploads.
+- Razorpay variables are required for premium checkout.
+- Email variables are required for welcome emails and password reset emails.
 
-### Frontend: `frontend/.env`
+### Frontend `.env`
 
 ```env
 VITE_API_URL=http://localhost:5000/api
@@ -360,7 +668,7 @@ VITE_SOCKET_URL=http://localhost:5000
 
 ## Local Development
 
-### Install dependencies
+### 1. Install dependencies
 
 ```bash
 cd backend
@@ -370,21 +678,21 @@ cd ../frontend
 npm install
 ```
 
-### Start backend
+### 2. Start the backend
 
 ```bash
 cd backend
 npm run dev
 ```
 
-### Start frontend
+### 3. Start the frontend
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-### Open locally
+### 4. Open the app
 
 ```text
 Frontend: http://localhost:5173
@@ -393,27 +701,28 @@ Backend:  http://localhost:5000
 
 ## Deployment Notes
 
-- frontend is ready for Vercel and includes [vercel.json](C:/Users/welcome/projects/PrepTube/frontend/vercel.json)
-- backend is structured for a single Express + Socket.io deployment on Railway or Render
-- production OAuth callback URLs must exactly match your deployed backend origin
-- Socket.io CORS depends on `FRONTEND_URL`
-- if Cloudinary is not configured, text chat still works but image/voice uploads will fail with a configuration error
+- Frontend is prepared for Vercel with `frontend/vercel.json`.
+- Backend expects a single Node deployment that serves both Express HTTP traffic and Socket.IO traffic.
+- CORS for both REST and Socket.IO is driven by `FRONTEND_URL`.
+- Google OAuth callback URLs must exactly match the deployed backend route.
+- The frontend must load the Razorpay checkout script in production just like local development.
+- Cloudinary must be configured in production if you want image and voice chat to work.
+- Nodemailer is configured with Gmail transport, so production email delivery depends on Gmail credentials or app passwords.
 
-## Current Limitations
+## Architectural Constraints And Caveats
 
-- premium billing is not implemented yet; only the data model and enforcement logic exist
-- media upload currently assumes Cloudinary rather than supporting multiple storage providers
-- explore is public-feed only and does not include SSR/prerendering yet
-- streaks are tracked per playlist, not globally across all study rooms
+- Payment order state is not persistent yet because it lives in server memory.
+- There is no dedicated billing history collection yet.
+- There are no automated tests in the repository yet.
+- Playlist import assumes a valid YouTube playlist URL with a `list` query parameter.
+- Public playlist discovery is topic-based and does not yet support search, pagination, or ranking beyond recent updates.
+- Workspace access is member-only even for public playlists, which is intentional for collaboration control.
+- `index.html` at the repository root is a standalone static file and not part of the Vite React app. The app entry HTML is `frontend/index.html`.
 
-## Repo Notes
+## Suggested Next Improvements
 
-- [index.html](C:/Users/welcome/projects/PrepTube/index.html) at the repository root is a separate standalone static file and is not part of the React app
-- the frontend app entry HTML is [frontend/index.html](C:/Users/welcome/projects/PrepTube/frontend/index.html)
-
-## Suggested Next Steps
-
-1. configure Cloudinary in production and manually test image/voice chat
-2. add payment integration for upgrading from free to premium
-3. add sitemap/prerender support for stronger SEO on landing and explore
-4. add automated tests around join limits, streak logging, and socket chat
+1. Persist payment records in MongoDB and add webhook support for stronger payment reliability.
+2. Add automated tests around joins, member limits, streak calculation, notes, and socket chat.
+3. Add playlist search, pagination, and ranking for Explore.
+4. Add durable media metadata and optional storage abstraction beyond Cloudinary.
+5. Add analytics, moderation, and admin tooling once the MVP enters real usage.

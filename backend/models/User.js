@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema(
     googleId: { type: String },
     avatar: { type: String },
     role: { type: String, default: "user" },
+    isPremium: { type: Boolean, default: false },
     plan: { type: String, enum: ["free", "premium"], default: "free" },
+    premiumExpiresAt: { type: Date, default: null },
     playlists: [{ type: mongoose.Schema.Types.ObjectId, ref: "Playlist" }],
     passwordResetToken: {
       type: String,
@@ -43,8 +45,16 @@ userSchema.methods.matchPassword = async function matchPassword(enteredPass) {
   return bcrypt.compare(enteredPass, this.password);
 };
 
+userSchema.methods.isActivePremium = function isActivePremium() {
+  if (this.isPremium !== true || !this.premiumExpiresAt) {
+    return false;
+  }
+
+  const premiumExpiresAt = new Date(this.premiumExpiresAt);
+  return !Number.isNaN(premiumExpiresAt.getTime()) && premiumExpiresAt.getTime() > Date.now();
+};
+
 const User = mongoose.model("User", userSchema);
 userSchema.index({ googleId: 1 }, { sparse: true })      
 userSchema.index({ passwordResetToken: 1 }, { sparse: true }) 
 export default User;
-

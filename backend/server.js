@@ -5,6 +5,7 @@ import http from "http";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import playlistRoutes from "./routes/playlistRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import passport from "./config/passport.js";
 import setupSocket from "./socket/index.js";
@@ -36,6 +37,7 @@ app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/playlists", playlistRoutes);
+app.use("/api/payment", paymentRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to PrepTube API");

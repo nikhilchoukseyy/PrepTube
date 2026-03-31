@@ -4,7 +4,7 @@ import Playlist from "../models/Playlist.js";
 import ChatMessage from "../models/ChatMessage.js";
 import dotenv from "dotenv";
 import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, serializeUser } from "../utils/userIdentity.js";
-import { sendWelcomeEmail, sendPasswordResetEmail } from "../utils/emailService.js";
+import { sendWelcomeEmail, sendPasswordResetEmail, sendOwnerQuestionEmail } from "../utils/emailService.js";
 import crypto from "crypto";
 
 
@@ -140,6 +140,43 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+export const submitQuestion = async (req, res) => {
+  const name = req.body.name?.trim();
+  const email = req.body.email?.trim().toLowerCase();
+  const question = req.body.question?.trim();
+
+  try {
+    if (!name || !email || !question) {
+      return res.status(400).json({ message: "Name, email, and question are required" });
+    }
+
+    if (name.length > 80) {
+      return res.status(400).json({ message: "Name must be 80 characters or fewer" });
+    }
+
+    if (question.length < 10) {
+      return res.status(400).json({ message: "Question should be at least 10 characters long" });
+    }
+
+    if (question.length > 2000) {
+      return res.status(400).json({ message: "Question must be 2000 characters or fewer" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    await sendOwnerQuestionEmail({ name, email, question });
+
+    return res.status(200).json({
+      message: "Your question has been sent. We will get back to you soon.",
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Unable to send your question right now" });
+  }
+};
+
 export const loginUser = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
   const password = req.body.password;
@@ -149,7 +186,7 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email }).select("name email username avatar password googleId plan role passwordResetToken")
+    const user = await User.findOne({ email }).select("name email username avatar password googleId isPremium plan premiumExpiresAt role passwordResetToken")
 ;
 
     if (user?.googleId && !user.password) {

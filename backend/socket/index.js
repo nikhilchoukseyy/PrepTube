@@ -38,7 +38,7 @@ export default function setupSocket(server) {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select("name email username avatar plan");
+      const user = await User.findById(decoded.id).select("name email username avatar isPremium plan premiumExpiresAt");
       if (!user) {
         return next(new Error("Authentication error"));
       }

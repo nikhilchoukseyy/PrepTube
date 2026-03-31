@@ -76,14 +76,40 @@ export function pickDisplayName(user = {}) {
   return user.username || user.name || user.email || "User";
 }
 
+export function isPremiumActive(user = {}, referenceDate = new Date()) {
+  if (typeof user?.isActivePremium === "function") {
+    return user.isActivePremium();
+  }
+
+  const premiumExpiresAt = new Date(user.premiumExpiresAt);
+  if (Number.isNaN(premiumExpiresAt.getTime())) {
+    return false;
+  }
+
+  const hasPremiumAccess = user?.isPremium === true || user?.plan === "premium";
+  return hasPremiumAccess && premiumExpiresAt.getTime() > referenceDate.getTime();
+}
+
+export function getEffectivePlan(user = {}, referenceDate = new Date()) {
+  return isPremiumActive(user, referenceDate) ? "premium" : "free";
+}
+
 export function serializeUser(user = {}) {
+  const effectivePlan = getEffectivePlan(user);
+  const premiumExpiresAt =
+    effectivePlan === "premium" && user?.premiumExpiresAt
+      ? new Date(user.premiumExpiresAt).toISOString()
+      : null;
+
   return {
     id: user._id,
     name: user.name,
     email: user.email,
     username: user.username,
     avatar: user.avatar || buildAvatarUrl(pickDisplayName(user)),
-    plan: user.plan || "free",
+    plan: effectivePlan,
+    isPremium: effectivePlan === "premium",
+    premiumExpiresAt,
   };
 }
 

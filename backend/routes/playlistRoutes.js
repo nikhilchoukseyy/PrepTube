@@ -18,6 +18,7 @@ import {
   uploadChatMedia,
 } from "../controllers/playlistController.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { enforceMemberLimit } from "../middleware/planMiddleware.js";
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.post("/create", protect, createPlaylist);
 router.get("/my-playlists", protect, getUserPlaylist);
 router.post("/mark", protect, markVideoCompleted);
 router.post("/unmark", protect, unmarkVideoCompleted);
-router.post("/join", protect, joinPlaylist);
+router.post("/join", protect, enforceMemberLimit, joinPlaylist);
 router.get("/:playlistId/details", protect, getPlaylistDetail);
 router.put("/:playlistId/videos/:videoId/note", protect, saveVideoNote);
 router.get("/:playlistId/chats", protect, getChatMessage);

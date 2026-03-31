@@ -10,7 +10,6 @@ import { DEFAULT_TIMEZONE, getDateKeyInTimezone, serializeUser } from "../utils/
 
 dotenv.config();
 
-const MEMBER_LIMIT_FREE_PLAN = 5;
 const FRONTEND_BASE_URL = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim();
 
 function extractInviteToken(rawValue) {
@@ -351,7 +350,7 @@ function computePlaylistStats(playlist) {
 }
 
 async function fetchPlaylistWithMembers(playlistId) {
-  return Playlist.findOne({ playlistId }).populate("owner members progress.user videoNotes.user", "name email username avatar plan");
+  return Playlist.findOne({ playlistId }).populate("owner members progress.user videoNotes.user", "name email username avatar isPremium plan premiumExpiresAt");
 }
 
 async function assertPlaylistAccess(playlistId, userId) {
@@ -367,21 +366,6 @@ async function assertPlaylistAccess(playlistId, userId) {
   normalizePlaylistState(playlist);
 
   return { playlist };
-}
-
-async function enforceMemberLimit(playlist) {
-  const owner = playlist.owner?.plan ? playlist.owner : await User.findById(playlist.owner).select("plan");
-
-  if ((playlist.members?.length || 0) >= MEMBER_LIMIT_FREE_PLAN && (owner?.plan || "free") === "free") {
-    const error = new Error("Member limit reached for this free playlist");
-    error.status = 403;
-    error.body = {
-      message: "This playlist has reached the free-tier collaborator limit. Upgrade to premium for unlimited members.",
-      error: "MEMBER_LIMIT_REACHED",
-      upgradeUrl: "/pricing",
-    };
-    throw error;
-  }
 }
 
 async function uploadToCloudinary(fileData, messageType) {
@@ -552,7 +536,7 @@ export const getUserPlaylist = async (req, res) => {
     const playlists = await Playlist.find({
       $or: [{ owner: userId }, { members: userId }],
     })
-      .populate("owner members", "name email username avatar plan")
+      .populate("owner members", "name email username avatar isPremium plan premiumExpiresAt")
       .sort({ updatedAt: -1 }).lean();
 
     const normalized = playlists.map((playlist) => ({
@@ -579,7 +563,7 @@ export const getUserPlaylist = async (req, res) => {
 export const getExplorePlaylists = async (req, res) => {
   try {
     const playlists = await Playlist.find({ isPublic: true })
-      .populate("owner", "name email username avatar plan")
+      .populate("owner", "name email username avatar isPremium plan premiumExpiresAt")
       .sort({ updatedAt: -1 }).lean();
 
     const explorePlaylists = playlists.map((playlist) => ({
@@ -750,7 +734,7 @@ export const saveVideoNote = async (req, res) => {
     }
 
     await playlist.save();
-    await playlist.populate("videoNotes.user", "name email username avatar plan");
+    await playlist.populate("videoNotes.user", "name email username avatar isPremium plan premiumExpiresAt");
 
     const savedNote = playlist.videoNotes.find(
       (note) => note.videoId === videoId && getEntityId(note?.user) === requesterId
@@ -792,7 +776,7 @@ export const generateInviteToken = async (req, res) => {
   try {
     const { playlistId } = req.params;
     const { regenerate = false } = req.body || {};
-    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "plan").select("playlistId inviteToken owner");
+    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "isPremium plan premiumExpiresAt").select("playlistId inviteToken owner");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -825,11 +809,11 @@ export const joinPlaylist = async (req, res) => {
     const token = extractInviteToken(req.body?.token);
     const publicPlaylistId = req.body?.playlistId?.trim();
 
-    let playlist = null;
-    if (token) {
-      playlist = await Playlist.findOne({ inviteToken: token }).populate("owner", "plan");
-    } else if (publicPlaylistId) {
-      playlist = await Playlist.findOne({ playlistId: publicPlaylistId, isPublic: true }).populate("owner", "plan");
+    let playlist = req.joinTargetPlaylist || null;
+    if (!playlist && token) {
+      playlist = await Playlist.findOne({ inviteToken: token }).populate("owner", "isPremium plan premiumExpiresAt");
+    } else if (!playlist && publicPlaylistId) {
+      playlist = await Playlist.findOne({ playlistId: publicPlaylistId, isPublic: true }).populate("owner", "isPremium plan premiumExpiresAt");
     }
 
     if (!playlist) {
@@ -845,8 +829,6 @@ export const joinPlaylist = async (req, res) => {
         title: playlist.title,
       });
     }
-
-    await enforceMemberLimit(playlist);
 
     await Playlist.updateOne({ _id: playlist._id }, { $addToSet: { members: userId } });
 
@@ -864,7 +846,7 @@ export const joinPlaylist = async (req, res) => {
 export const leavePlaylist = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "plan").select("playlistId owner members");
+    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "isPremium plan premiumExpiresAt").select("playlistId owner members");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -1065,8 +1047,9 @@ export const getChatMessage = async (req, res) => {
     }
 
     const chats = await ChatMessage.find({ playlist: playlist._id })
-      .populate("sender", "name email username avatar plan")
-      .sort({ createdAt: 1 })
+      .populate("sender", "name email username avatar isPremium plan premiumExpiresAt")
+      .sort({ createdAt: -1 })
+      .limit(50)
       .lean();
 
     return res.status(200).json({

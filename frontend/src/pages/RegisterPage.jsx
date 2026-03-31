@@ -88,6 +88,7 @@ const RegisterPage = () => {
         username: res.data.username,
         avatar: res.data.avatar,
         plan: res.data.plan,
+        premiumExpiresAt: res.data.premiumExpiresAt,
       });
       navigate(redirectTo);
     } catch (err) {

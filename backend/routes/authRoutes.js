@@ -3,7 +3,7 @@ import passport from "../config/passport.js";
 import jwt from "jsonwebtoken";
 import { protect } from "../middleware/authMiddleware.js";
 import { serializeUser } from "../utils/userIdentity.js";
-import { forgotPassword, resetPassword } from "../controllers/userController.js";
+import { forgotPassword, resetPassword, submitQuestion } from "../controllers/userController.js";
 
 
 
@@ -43,5 +43,6 @@ router.post("/forgot-password", forgotPassword);
 
 router.post("/reset-password/:token", resetPassword);
 
-export default router;
+router.post("/question", submitQuestion);
 
+export default router;

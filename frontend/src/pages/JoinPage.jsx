@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
+import UpgradePromptBanner from "../components/UpgradePromptBanner";
 import { API_URL, authHeaders, getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { IC } from "./Icons";
@@ -12,6 +13,7 @@ export const JoinPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState("joining");
   const [error, setError] = useState("");
+  const [upgradePrompt, setUpgradePrompt] = useState("");
 
   useEffect(() => {
     setPageMeta({ title: "Join Playlist | PrepTube", description: "Join a PrepTube playlist room from an invite link." });
@@ -27,7 +29,11 @@ export const JoinPage = () => {
         navigate(`/video/${res.data.playlistId}`);
       } catch (err) {
         const payload = err.response?.data;
-        if (payload?.error === "MEMBER_LIMIT_REACHED") { navigate("/pricing", { state: { upgradePrompt: payload.message } }); return; }
+        if (payload?.error === "MEMBER_LIMIT_REACHED") {
+          setUpgradePrompt("This room is full on the free plan.");
+          setStatus("upgrade");
+          return;
+        }
         setError(payload?.message || "Unable to join this playlist.");
         setStatus("error");
       }
@@ -48,6 +54,8 @@ export const JoinPage = () => {
             <p className="text-white/50 font-medium">Joining playlist room...</p>
             <span className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
           </div>
+        ) : status === "upgrade" ? (
+          <UpgradePromptBanner message={upgradePrompt} />
         ) : (
           <div className="flex flex-col items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">

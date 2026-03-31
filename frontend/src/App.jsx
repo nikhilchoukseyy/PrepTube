@@ -8,6 +8,7 @@ const LandingPage  = lazy(() => import('./pages/LandingPage'))
 const CoursesPage  = lazy(() => import('./pages/CoursesPage'))
 const ExplorePage  = lazy(() => import('./pages/ExplorePage'))
 const PricingPage  = lazy(() => import('./pages/PricingPage'))
+const SuccessPage  = lazy(() => import('./pages/SuccessPage'))
 const VideoPage    = lazy(() => import('./pages/VideoPage'))
 const ProfilePage  = lazy(() => import('./pages/ProfilePage'))
 const LoginPage    = lazy(() => import('./pages/LoginPage'))
@@ -24,6 +25,7 @@ function App() {
           <Route path="/courses"            element={<CoursesPage />} />
           <Route path="/explore"            element={<ExplorePage />} />
           <Route path="/pricing"            element={<PricingPage />} />
+          <Route path="/success"            element={<SuccessPage />} />
           <Route path="/join/:token"        element={<JoinPage />} />
           <Route path="/login"              element={<LoginPage />} />
           <Route path="/register"           element={<RegisterPage />} />
