@@ -8,14 +8,12 @@ import playlistRoutes from "./routes/playlistRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import passport from "./config/passport.js";
 import setupSocket from "./socket/index.js";
-import compression from 'compression'
-
+import compression from 'compression';
 
 dotenv.config();
 connectDB();
 
 const app = express();
-app.use(compression());
 const server = http.createServer(app);
 setupSocket(server);
 
@@ -24,6 +22,7 @@ const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+app.use(compression());
 app.use(
   cors({
     origin: allowedOrigins,
@@ -33,14 +32,6 @@ app.use(
 );
 app.use(express.json({ limit: "25mb" }));
 app.use(passport.initialize());
-app.use(express.static("dist", {
-  maxAge: "1y",
-  etag: true,
-}));
-app.get(/.*/, (req, res) => {
-  res.setHeader("Cache-Control", "no-cache");
-  res.sendFile(path.resolve("dist", "index.html"));
-});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -50,8 +41,5 @@ app.get("/", (req, res) => {
   res.send("Welcome to PrepTube API");
 });
 
-
-
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
