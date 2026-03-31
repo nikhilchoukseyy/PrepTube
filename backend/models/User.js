@@ -44,5 +44,7 @@ userSchema.methods.matchPassword = async function matchPassword(enteredPass) {
 };
 
 const User = mongoose.model("User", userSchema);
+userSchema.index({ googleId: 1 }, { sparse: true })      
+userSchema.index({ passwordResetToken: 1 }, { sparse: true }) 
 export default User;
 

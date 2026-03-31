@@ -9,7 +9,7 @@ import { API_URL, SOCKET_URL, authHeaders, getStoredUser, getToken, requireAuthR
 import { setPageMeta } from "../utils/meta";
 import { MAX_PLAYLIST_TOPICS, buildPlaylistTopicOptions, dedupePlaylistTopics, normalizeTopicLabel, sameTopicSet } from "../utils/playlistTopics";
 import { IC } from "./Icons";
-import imageCompression from "browser-image-compression";
+const imageCompression = (await import('browser-image-compression')).default
 
 const ThumbnailImage = ({ videoId, fallbackSrc, alt, className }) => {
   const sources = [

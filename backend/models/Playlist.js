@@ -69,5 +69,12 @@ playlistSchema.path("videoNotes").validate(function validateUniqueVideoNotes(vid
 }, "Each user can only have one private note per playlist video.");
 
 const Playlist = mongoose.model("Playlist", playlistSchema);
+
+playlistSchema.index({ owner: 1 })                    
+playlistSchema.index({ isPublic: 1, createdAt: -1 })  
+playlistSchema.index({ inviteToken: 1 })              
+playlistSchema.index({ members: 1 })                 
+playlistSchema.index({ 'progress.user': 1 }) 
+
 export default Playlist;
 

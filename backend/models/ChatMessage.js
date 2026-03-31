@@ -16,5 +16,6 @@ const chatSchema = new mongoose.Schema(
 );
 
 const ChatMessage = mongoose.model("ChatMessage", chatSchema);
+chatSchema.index({ playlist: 1, createdAt: -1 }) 
 export default ChatMessage;
 

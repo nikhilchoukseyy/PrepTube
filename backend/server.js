@@ -8,12 +8,14 @@ import playlistRoutes from "./routes/playlistRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import passport from "./config/passport.js";
 import setupSocket from "./socket/index.js";
+import compression from 'compression'
 
 
 dotenv.config();
 connectDB();
 
 const app = express();
+app.use(compression());
 const server = http.createServer(app);
 setupSocket(server);
 
@@ -31,6 +33,14 @@ app.use(
 );
 app.use(express.json({ limit: "25mb" }));
 app.use(passport.initialize());
+app.use(express.static("dist", {
+  maxAge: "1y",
+  etag: true,
+}));
+app.get(/.*/, (req, res) => {
+  res.setHeader("Cache-Control", "no-cache");
+  res.sendFile(path.resolve("dist", "index.html"));
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);

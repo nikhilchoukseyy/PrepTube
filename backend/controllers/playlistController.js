@@ -553,7 +553,7 @@ export const getUserPlaylist = async (req, res) => {
       $or: [{ owner: userId }, { members: userId }],
     })
       .populate("owner members", "name email username avatar plan")
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 }).lean();
 
     const normalized = playlists.map((playlist) => ({
       _id: playlist._id,
@@ -580,7 +580,7 @@ export const getExplorePlaylists = async (req, res) => {
   try {
     const playlists = await Playlist.find({ isPublic: true })
       .populate("owner", "name email username avatar plan")
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 }).lean();
 
     const explorePlaylists = playlists.map((playlist) => ({
       playlistId: playlist.playlistId,
@@ -792,7 +792,7 @@ export const generateInviteToken = async (req, res) => {
   try {
     const { playlistId } = req.params;
     const { regenerate = false } = req.body || {};
-    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "plan");
+    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "plan").select("playlistId inviteToken owner");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -864,7 +864,7 @@ export const joinPlaylist = async (req, res) => {
 export const leavePlaylist = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "plan");
+    const playlist = await Playlist.findOne({ playlistId }).populate("owner", "plan").select("playlistId owner members");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -891,7 +891,7 @@ export const leavePlaylist = async (req, res) => {
 export const removeMember = async (req, res) => {
   try {
     const { playlistId, userId } = req.params;
-    const playlist = await Playlist.findOne({ playlistId });
+    const playlist = await Playlist.findOne({ playlistId }).select("playlistId owner members");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -915,7 +915,7 @@ export const updatePlaylistVisibility = async (req, res) => {
   try {
     const { playlistId } = req.params;
     const { isPublic, topics } = req.body || {};
-    const playlist = await Playlist.findOne({ playlistId });
+    const playlist = await Playlist.findOne({ playlistId }).select("playlistId owner isPublic topics");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -1036,7 +1036,7 @@ export const uploadChatMedia = async (req, res) => {
 export const deletePlaylist = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const playlist = await Playlist.findOne({ playlistId });
+    const playlist = await Playlist.findOne({ playlistId }).select("_id owner");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
@@ -1066,7 +1066,8 @@ export const getChatMessage = async (req, res) => {
 
     const chats = await ChatMessage.find({ playlist: playlist._id })
       .populate("sender", "name email username avatar plan")
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: 1 })
+      .lean();
 
     return res.status(200).json({
       chats: chats.map((chat) => ({

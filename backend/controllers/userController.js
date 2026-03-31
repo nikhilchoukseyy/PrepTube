@@ -74,7 +74,7 @@ export const forgotPassword = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("email googleId password passwordResetToken passwordResetExpires");
 
 
     if (!user || (user.googleId && !user.password)) {
@@ -114,13 +114,13 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // URL se aaya token hash karo, DB se match karo
+    
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: Date.now() }, // Token abhi valid hai?
-    });
+      passwordResetExpires: { $gt: Date.now() }, 
+    }).select("password passwordResetToken passwordResetExpires");
 
     if (!user) {
       return res.status(400).json({ message: "Token is invalid or has expired" });
@@ -147,7 +147,8 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("name email username avatar password googleId plan role passwordResetToken")
+;
 
     if (user?.googleId && !user.password) {
       return res.status(400).json({ message: "This account uses Google sign-in. Please continue with Google." });
