@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
 import Loader from "./components/Loader";
+import Footer from "./components/Footer";
 
 const LandingPage  = lazy(() => import('./pages/LandingPage'))
 const CoursesPage  = lazy(() => import('./pages/CoursesPage'))
@@ -20,21 +21,24 @@ function App() {
   return (
     <Router>
       <Suspense fallback={<div><Loader /></div>}>
-        <Routes>
-          <Route path="/"                   element={<LandingPage />} />
-          <Route path="/courses"            element={<CoursesPage />} />
-          <Route path="/explore"            element={<ExplorePage />} />
-          <Route path="/pricing"            element={<PricingPage />} />
-          <Route path="/success"            element={<SuccessPage />} />
-          <Route path="/join/:token"        element={<JoinPage />} />
-          <Route path="/login"              element={<LoginPage />} />
-          <Route path="/register"           element={<RegisterPage />} />
-          <Route path="/video/:id"          element={<VideoPage />} />
-          <Route path="/profile"            element={<ProfilePage />} />
-          <Route path="/auth/callback"      element={<AuthCallback />} />
-          <Route path="/forgot-password"    element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-        </Routes>
+        <>
+          <Routes>
+            <Route path="/"                   element={<LandingPage />} />
+            <Route path="/courses"            element={<CoursesPage />} />
+            <Route path="/explore"            element={<ExplorePage />} />
+            <Route path="/pricing"            element={<PricingPage />} />
+            <Route path="/success"            element={<SuccessPage />} />
+            <Route path="/join/:token"        element={<JoinPage />} />
+            <Route path="/login"              element={<LoginPage />} />
+            <Route path="/register"           element={<RegisterPage />} />
+            <Route path="/video/:id"          element={<VideoPage />} />
+            <Route path="/profile"            element={<ProfilePage />} />
+            <Route path="/auth/callback"      element={<AuthCallback />} />
+            <Route path="/forgot-password"    element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          </Routes>
+          <Footer />
+        </>
       </Suspense>
     </Router>
   );

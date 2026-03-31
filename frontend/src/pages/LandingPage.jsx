@@ -218,7 +218,6 @@ const LandingPage = () => {
     [user]
   );
   const [isMuted, setIsMuted] = useState(true);
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -230,6 +229,25 @@ const LandingPage = () => {
       ogDescription:
         "Import playlists, track progress, study with friends, and chat live inside a focused learning workspace.",
     });
+  }, []);
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement || !demoVideoSrc) return undefined;
+
+    const handlePageShow = () => {
+      const playPromise = videoElement.play();
+      if (typeof playPromise?.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    };
+
+    handlePageShow();
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
   }, []);
 
   const handleQuestionChange = (field) => (event) => {
@@ -365,25 +383,16 @@ const LandingPage = () => {
               >
                 {demoVideoSrc ? (
                   <>
-                    {/* Show image until video loads */}
-                    {!videoLoaded && (
-                      <img
-                        src={demoImg}
-                        alt="Demo Preview"
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                    )}
-
                     <video
                       ref={videoRef}
                       src={demoVideoSrc}
+                      poster={demoImg}
                       autoPlay
                       muted={isMuted}
                       loop
                       playsInline
-                      preload="metadata"
-                      onCanPlay={() => setVideoLoaded(true)}
-                      className={`h-full w-full object-cover transition-opacity duration-500 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+                      preload="auto"
+                      className="h-full w-full object-cover"
                     />
 
                     {/* Mute/Unmute button */}
