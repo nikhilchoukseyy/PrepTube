@@ -7,6 +7,7 @@ import User from "../models/User.js";
 import { canAccessPlaylist, isPlaylistMember, isPlaylistOwner } from "../utils/playlistAccess.js";
 import { buildAvailablePlaylistTopics, normalizePlaylistTopics } from "../utils/playlistTopics.js";
 import { DEFAULT_TIMEZONE, getDateKeyInTimezone, serializeUser } from "../utils/userIdentity.js";
+import { trackEvent } from "../utils/analytics.js";
 
 dotenv.config();
 
@@ -519,6 +520,12 @@ export const createPlaylist = async (req, res) => {
 
     await newPlaylist.save();
 
+    trackEvent(userId, "playlist_imported", {
+      playlistId: newPlaylist.playlistId,
+      title: newPlaylist.title,
+      videoCount: newPlaylist.videos.length,
+    });
+
     return res.status(201).json({
       message: "Playlist created successfully",
       totalVideos: videos.length,
@@ -597,11 +604,20 @@ export const markVideoCompleted = async (req, res) => {
     }
 
     const userProgress = ensureProgressEntry(playlist, req.user._id);
-    if (!userProgress.completedVideos.includes(videoId)) {
+    const wasAlreadyCompleted = userProgress.completedVideos.includes(videoId);
+    if (!wasAlreadyCompleted) {
       userProgress.completedVideos.push(videoId);
     }
 
     await playlist.save();
+
+    if (!wasAlreadyCompleted) {
+      trackEvent(req.user._id, "video_marked_complete", {
+        playlistId,
+        videoId,
+      });
+    }
+
     return res.status(200).json({ message: "Video marked as completed" });
   } catch (error) {
     console.error("Error marking video completed", error.message);
@@ -808,6 +824,7 @@ export const joinPlaylist = async (req, res) => {
     const userId = req.user._id;
     const token = extractInviteToken(req.body?.token);
     const publicPlaylistId = req.body?.playlistId?.trim();
+    const joinMethod = token ? "invite" : "explore";
 
     let playlist = req.joinTargetPlaylist || null;
     if (!playlist && token) {
@@ -831,6 +848,11 @@ export const joinPlaylist = async (req, res) => {
     }
 
     await Playlist.updateOne({ _id: playlist._id }, { $addToSet: { members: userId } });
+
+    trackEvent(userId, "playlist_joined", {
+      playlistId: playlist.playlistId,
+      method: joinMethod,
+    });
 
     return res.status(200).json({
       message: "Joined playlist successfully",
@@ -947,6 +969,7 @@ export const logPlaylistTime = async (req, res) => {
     }
 
     const userProgress = ensureProgressEntry(playlist, req.user._id);
+    const previousStreak = userProgress.currentStreak || 0;
     const todayKey = getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE);
     const dailyEntry = userProgress.dailyMinutes.find((entry) => entry.date === todayKey);
 
@@ -962,6 +985,13 @@ export const logPlaylistTime = async (req, res) => {
     userProgress.lastStreakDate = streakStats.lastStreakDate;
 
     await playlist.save();
+
+    if (userProgress.currentStreak > previousStreak) {
+      trackEvent(req.user._id, "streak_updated", {
+        playlistId,
+        currentStreak: userProgress.currentStreak,
+      });
+    }
 
     const todayMinutes = userProgress.dailyMinutes.find((entry) => entry.date === todayKey)?.minutes || 0;
     return res.json({

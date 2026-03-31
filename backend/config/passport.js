@@ -3,6 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 import dotenv from "dotenv";
 import { buildAvatarUrl, generateUniqueUsername, isGeneratedAvatarUrl } from "../utils/userIdentity.js";
+import { trackEvent } from "../utils/analytics.js";
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ passport.use(
       try {
         const email = profile.emails?.[0]?.value?.toLowerCase();
         const googleAvatar = profile.photos?.[0]?.value;
+        let isNewUser = false;
 
         let user = await User.findOne({ googleId: profile.id });
         if (user) {
@@ -29,7 +31,10 @@ passport.use(
           if (!user.avatar || (googleAvatar && isGeneratedAvatarUrl(user.avatar))) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
           }
+          user.lastLoginAt = new Date();
           await user.save();
+          trackEvent(user._id, "user_logged_in", { method: "google", isNewUser });
+          user._oauthIsNewUser = isNewUser;
           return done(null, user);
         }
 
@@ -45,7 +50,10 @@ passport.use(
           if (!user.avatar || (googleAvatar && isGeneratedAvatarUrl(user.avatar))) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
           }
+          user.lastLoginAt = new Date();
           await user.save();
+          trackEvent(user._id, "user_logged_in", { method: "google", isNewUser });
+          user._oauthIsNewUser = isNewUser;
           return done(null, user);
         }
 
@@ -60,7 +68,13 @@ passport.use(
           email,
           username,
           avatar: googleAvatar || buildAvatarUrl(username),
+          lastLoginAt: new Date(),
         });
+
+        isNewUser = true;
+        trackEvent(user._id, "user_logged_in", { method: "google", isNewUser });
+        trackEvent(user._id, "user_signed_up", { method: "google" });
+        user._oauthIsNewUser = isNewUser;
 
         return done(null, user);
       } catch (err) {

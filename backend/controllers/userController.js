@@ -5,6 +5,7 @@ import ChatMessage from "../models/ChatMessage.js";
 import dotenv from "dotenv";
 import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, serializeUser } from "../utils/userIdentity.js";
 import { sendWelcomeEmail, sendPasswordResetEmail, sendOwnerQuestionEmail } from "../utils/emailService.js";
+import { trackEvent } from "../utils/analytics.js";
 import crypto from "crypto";
 
 
@@ -52,12 +53,18 @@ export const registerUser = async (req, res) => {
       password,
       username,
       avatar: normalizedAvatar || buildAvatarUrl(username),
+      lastLoginAt: new Date(),
     });
 
     // Welcome email bhejo (async — user ko wait nahi karana)
     sendWelcomeEmail(user.email, user.name).catch((err) =>
       console.error("Welcome email failed:", err.message)
     );
+
+    trackEvent(user._id, "user_signed_up", {
+      method: "email",
+      username: user.username,
+    });
 
     return res.status(201).json({
       ...serializeUser(user),
@@ -186,8 +193,9 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email }).select("name email username avatar password googleId isPremium plan premiumExpiresAt role passwordResetToken")
-;
+    const user = await User.findOne({ email }).select(
+      "name email username avatar password googleId isPremium plan premiumExpiresAt role lastLoginAt passwordResetToken"
+    );
 
     if (user?.googleId && !user.password) {
       return res.status(400).json({ message: "This account uses Google sign-in. Please continue with Google." });
@@ -200,7 +208,12 @@ export const loginUser = async (req, res) => {
       if (!user.avatar) {
         user.avatar = buildAvatarUrl(user.username || user.name || user.email);
       }
+      user.lastLoginAt = new Date();
       await user.save();
+
+      trackEvent(user._id, "user_logged_in", {
+        method: "email",
+      });
 
       return res.json({
         ...serializeUser(user),

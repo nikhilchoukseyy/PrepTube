@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import posthog from "posthog-js";
 import { API_ROOT, API_URL, setStoredAuth } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { IC } from "./Icons";
@@ -35,14 +36,17 @@ const LoginPage = () => {
         password,
       });
       setStoredAuth(res.data.token, {
+        _id: res.data._id || res.data.id,
         id: res.data.id,
         name: res.data.name,
         email: res.data.email,
         username: res.data.username,
         avatar: res.data.avatar,
+        role: res.data.role,
         plan: res.data.plan,
         premiumExpiresAt: res.data.premiumExpiresAt,
       });
+      posthog.capture("user_logged_in", { method: "email" });
       navigate(redirectTo);
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
@@ -53,14 +57,12 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center px-4 py-12 relative overflow-hidden">
-      {/* bg glow */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[400px] bg-red-600/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] bg-orange-500/8 rounded-full blur-[100px]" />
       </div>
 
       <div className="w-full max-w-sm sm:max-w-md relative z-10">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Link
             to="/"
@@ -72,7 +74,6 @@ const LoginPage = () => {
         </div>
 
         <div className="rounded-[28px] sm:rounded-[32px] border border-white/10 bg-white/[0.03] p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          {/* Error */}
           {error && (
             <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3">
               <IC.X className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
@@ -80,7 +81,6 @@ const LoginPage = () => {
             </div>
           )}
 
-          {/* Google */}
           <a
             href={`${API_ROOT}/api/auth/google?redirect=${encodeURIComponent(redirectTo)}`}
             className="w-full flex items-center justify-center gap-3 py-3 bg-white text-gray-900 font-semibold rounded-2xl hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-lg mb-5 text-sm"
@@ -89,14 +89,12 @@ const LoginPage = () => {
             Continue with Google
           </a>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-white/[0.08]" />
             <span className="text-white/30 text-xs uppercase tracking-[0.2em] font-medium">or</span>
             <div className="flex-1 h-px bg-white/[0.08]" />
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="relative">
               <IC.Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
@@ -129,7 +127,6 @@ const LoginPage = () => {
               </button>
             </div>
 
-            {/* ✅ Forgot Password Link */}
             <div className="flex justify-end">
               <Link
                 to="/forgot-password"

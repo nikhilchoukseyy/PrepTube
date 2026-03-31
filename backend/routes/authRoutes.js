@@ -29,6 +29,7 @@ router.get(
     const search = new URLSearchParams({
       token,
       redirect: stateRedirect,
+      isNewUser: String(req.user?._oauthIsNewUser === true),
     });
 
     res.redirect(`${frontendBase}/auth/callback?${search.toString()}`);

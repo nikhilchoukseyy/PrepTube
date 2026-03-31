@@ -1,6 +1,7 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { setStoredAuth } from "../utils/auth";
+import posthog from "posthog-js";
+import { API_URL, setStoredAuth } from "../utils/auth";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -9,19 +10,21 @@ const AuthCallback = () => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     const redirect = params.get("redirect") || "/courses";
+    const isNewUser = params.get("isNewUser") === "true";
 
     if (!token) {
       navigate("/login");
       return;
     }
 
-    fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
+    fetch(`${API_URL}/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
         if (!data.user) throw new Error("No user returned");
         setStoredAuth(token, data.user);
+        posthog.capture(isNewUser ? "user_signed_up" : "user_logged_in", { method: "google" });
         window.location.href = redirect;
       })
       .catch(() => {

@@ -2,6 +2,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import io from "socket.io-client";
+import posthog from "posthog-js";
 import Navbar from "../components/Navbar";
 import ChatMessage from "../components/ChatMessage";
 import StreakBadge from "../components/StreakBadge";
@@ -177,8 +178,22 @@ const VideoPage = () => {
   const toggleComplete = async (videoId, completed) => {
     try {
       await axios.post(`${API_URL}${completed ? "/playlists/unmark" : "/playlists/mark"}`, { playlistId: id, videoId }, { headers: authHeaders() });
-      fetchPlaylist();
+      await fetchPlaylist();
+      if (!completed) {
+        posthog.capture("video_marked_complete", { playlistId: id, videoId });
+      }
     } catch (err) { setError(err.response?.data?.message || "Failed to update progress"); }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!inviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      posthog.capture("invite_link_copied", { playlistId: id });
+    } catch {
+      setError("Unable to copy invite link");
+    }
   };
 
   const handleInvite = async (regenerate = false) => {
@@ -884,7 +899,7 @@ const VideoPage = () => {
                     <div className="space-y-2.5">
                       <input value={inviteLink} readOnly className="w-full px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs font-medium" />
                       <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => navigator.clipboard.writeText(inviteLink)} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 text-xs font-medium hover:bg-white/5 cursor-pointer active:scale-0.9">
+                        <button onClick={handleCopyInvite} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 text-xs font-medium hover:bg-white/5 cursor-pointer active:scale-0.9">
                           <IC.Copy className="w-3.5 h-3.5" /> Copy
                         </button>
                         {isOwner && (

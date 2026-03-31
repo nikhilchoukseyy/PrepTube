@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import posthog from "posthog-js";
 import { API_ROOT, API_URL, setStoredAuth } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { prepareAvatarUpload } from "../utils/avatarUpload";
@@ -82,14 +83,17 @@ const RegisterPage = () => {
         avatar,
       });
       setStoredAuth(res.data.token, {
+        _id: res.data._id || res.data.id,
         id: res.data.id,
         name: res.data.name,
         email: res.data.email,
         username: res.data.username,
         avatar: res.data.avatar,
+        role: res.data.role,
         plan: res.data.plan,
         premiumExpiresAt: res.data.premiumExpiresAt,
       });
+      posthog.capture("user_signed_up", { method: "email" });
       navigate(redirectTo);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
@@ -136,8 +140,6 @@ const RegisterPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            
-
             <Field icon={IC.User} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required />
 
             <div className="relative">
@@ -180,9 +182,43 @@ const RegisterPage = () => {
               />
             </div>
 
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-white/85">Profile avatar</p>
+                <p className="text-xs text-white/35">{avatar ? "Avatar ready to upload" : "Optional image for your profile"}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
+                >
+                  {avatarUploading ? "Processing..." : avatar ? "Change" : "Upload"}
+                </button>
+                {avatar ? (
+                  <button
+                    type="button"
+                    onClick={() => setAvatar("")}
+                    className="rounded-2xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10 cursor-pointer active:scale-0.9"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarSelection}
+              className="hidden"
+            />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || avatarUploading}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shadow-lg shadow-red-500/20 hover:scale-[1.01]  transition-transform cursor-pointer active:scale-0.9"
             >
               {loading

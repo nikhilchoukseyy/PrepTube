@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import posthog from "posthog-js";
 import Navbar from "../components/Navbar";
 import { getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
@@ -34,6 +35,8 @@ const PricingPage = () => {
   }, []);
 
   const onBuyNow = async () => {
+    posthog.capture("premium_checkout_started", { plan: "monthly" });
+
     if (!getToken()) {
       requireAuthRedirect(navigate, "/pricing");
       return;
@@ -56,7 +59,6 @@ const PricingPage = () => {
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-10">
         <section className="text-center max-w-3xl mx-auto space-y-4 px-2">
-          
           <h1 className="text-4xl sm:text-5xl font-black leading-tight">Simple pricing. Serious learning.</h1>
           <p className="text-white/55 text-base sm:text-lg font-medium">
             Start free with up to 5 collaborators, then upgrade to PrepTube Premium when your study group needs more room to learn together.

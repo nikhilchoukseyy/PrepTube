@@ -2,8 +2,9 @@ import crypto from "crypto";
 import Razorpay from "razorpay";
 import User from "../models/User.js";
 import { isPremiumActive, serializeUser } from "../utils/userIdentity.js";
+import { trackEvent } from "../utils/analytics.js";
 
-const PRO_PLAN = Object.freeze({
+export const PRO_PLAN = Object.freeze({
   id: "premium-monthly",
   name: "PrepTube Premium Monthly",
   description: "Monthly premium access with unlimited playlist collaborators while your plan is active.",
@@ -12,7 +13,7 @@ const PRO_PLAN = Object.freeze({
 });
 
 const PREMIUM_DURATION_MONTHS = 1;
-const paymentStore = new Map();
+export const paymentStore = new Map();
 
 function getRazorpayClient() {
   const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
@@ -199,6 +200,11 @@ export const verifyPayment = async (req, res) => {
 
     paymentRecord.premiumExpiresAt = premiumExpiresAt.toISOString();
     paymentStore.set(resolvedOrderId, paymentRecord);
+
+    trackEvent(req.user._id, "premium_purchased", {
+      orderId: resolvedOrderId,
+      amount: Math.round((paymentRecord.amount || 0) / 100),
+    });
 
     return res.status(200).json({
       message: "Payment verified successfully",

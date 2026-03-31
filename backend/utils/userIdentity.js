@@ -100,13 +100,16 @@ export function serializeUser(user = {}) {
     effectivePlan === "premium" && user?.premiumExpiresAt
       ? new Date(user.premiumExpiresAt).toISOString()
       : null;
+  const serializedId = user?._id ? String(user._id) : "";
 
   return {
-    id: user._id,
+    _id: serializedId,
+    id: serializedId,
     name: user.name,
     email: user.email,
     username: user.username,
     avatar: user.avatar || buildAvatarUrl(pickDisplayName(user)),
+    role: user.role || "user",
     plan: effectivePlan,
     isPremium: effectivePlan === "premium",
     premiumExpiresAt,

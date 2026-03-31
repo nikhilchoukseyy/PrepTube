@@ -5,6 +5,7 @@ import Playlist from "../models/Playlist.js";
 import User from "../models/User.js";
 import { canAccessPlaylist } from "../utils/playlistAccess.js";
 import { buildAvatarUrl, serializeUser } from "../utils/userIdentity.js";
+import { trackEvent } from "../utils/analytics.js";
 
 function formatSocketUser(user) {
   const serialized = serializeUser(user);
@@ -84,6 +85,11 @@ export default function setupSocket(server) {
           message: text,
           messageType,
           mediaUrl,
+        });
+
+        trackEvent(socket.user.id, "chat_message_sent", {
+          playlistId,
+          messageType,
         });
 
         io.to(playlistId).emit("newMessage", {
