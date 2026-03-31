@@ -10,20 +10,23 @@ const AuthCallback = () => {
     const token = params.get("token");
     const redirect = params.get("redirect") || "/courses";
 
-    if (token) {
-      setStoredAuth(token, {
-        id: params.get("id"),
-        name: params.get("name"),
-        email: params.get("email"),
-        username: params.get("username"),
-        avatar: params.get("avatar"),
-        plan: params.get("plan") || "free",
-      });
-      window.location.href = redirect;
+    if (!token) {
+      navigate("/login");
       return;
     }
 
-    navigate("/login");
+    fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.user) throw new Error("No user returned");
+        setStoredAuth(token, data.user);
+        window.location.href = redirect;
+      })
+      .catch(() => {
+        navigate("/login");
+      });
   }, [navigate]);
 
   return (
@@ -34,4 +37,3 @@ const AuthCallback = () => {
 };
 
 export default AuthCallback;
-

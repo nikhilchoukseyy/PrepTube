@@ -25,16 +25,9 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
     const stateRedirect = req.query.state || "/courses";
     const frontendBase = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim();
-    const user = serializeUser(req.user);
 
     const search = new URLSearchParams({
       token,
-      id: String(user.id),
-      name: user.name || "",
-      email: user.email || "",
-      username: user.username || "",
-      avatar: user.avatar || "",
-      plan: user.plan || "free",
       redirect: stateRedirect,
     });
 

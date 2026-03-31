@@ -585,21 +585,21 @@ const VideoPage = () => {
                   {selectedVideo && (
                     <button
                       onClick={() => toggleComplete(selectedVideo.videoId, selectedVideo.completed)}
-                      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-semibold text-sm cursor-pointer transition-colors ${selectedVideo.completed ? "bg-emerald-500 text-black" : "bg-white text-black hover:bg-white/90"}`}
+                      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-semibold text-sm cursor-pointer transition-colors ${selectedVideo.completed ? "bg-emerald-500 text-black" : "bg-white text-black hover:bg-white/90"} cursor-pointer active:scale-0.9`}
                     >
                       <IC.Check className={`w-4 h-4 ${selectedVideo.completed ? "text-black" : "text-black"}`} />
                       {selectedVideo.completed ? "Done" : "Mark done"}
                     </button>
                   )}
                   {nextVideo && (
-                    <button onClick={() => setSelectedVideo(nextVideo)} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl border border-white/10 bg-white/[0.05] text-sm font-medium hover:bg-white/10 transition-colors">
+                    <button onClick={() => setSelectedVideo(nextVideo)} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl border border-white/10 bg-white/[0.05] text-sm font-medium hover:bg-white/10 transition-colors cursor-pointer active:scale-0.9">
                       <IC.SkipForward className="w-4 h-4" /> Next
                     </button>
                   )}
                   {/* Mobile sidebar toggle */}
                   <button
                     onClick={() => setSidebarOpen((v) => !v)}
-                    className="xl:hidden flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 bg-white/[0.05] text-sm font-medium"
+                    className="xl:hidden flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 bg-white/[0.05] text-sm font-medium cursor-pointer active:scale-0.9"
                   >
                     <IC.Play className="w-3.5 h-3.5" /> Playlist ({playlist.videos.length})
                   </button>
@@ -637,7 +637,7 @@ const VideoPage = () => {
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${playlist.isPublic ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white/50"}`}>
                   {playlist.isPublic ? "Public" : "Private"}
                 </span>
-                <button onClick={() => setSidebarOpen(false)} className="xl:hidden text-white/30 hover:text-white/60 p-1">
+                <button onClick={() => setSidebarOpen(false)} className="xl:hidden text-white/30 hover:text-white/60 p-1 cursor-pointer active:scale-0.9">
                   <IC.X className="w-4 h-4" />
                 </button>
               </div>
@@ -646,7 +646,7 @@ const VideoPage = () => {
               {playlist.videos.map((video, index) => (
                 <button
                   key={video.videoId} onClick={() => { setSelectedVideo(video); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 sm:px-4 py-3 text-left border-l-4 transition-colors ${selectedVideo?.videoId === video.videoId ? "border-red-400 bg-white/[0.05]" : "border-transparent hover:bg-white/[0.03]"}`}
+                  className={`w-full flex items-center gap-3 px-3 sm:px-4 py-3 text-left border-l-4 transition-colors ${selectedVideo?.videoId === video.videoId ? "border-red-400 bg-white/[0.05]" : "border-transparent hover:bg-white/[0.03] cursor-pointer active:scale-0.9"}`}
                 >
                   <div className="relative shrink-0">
                     <ThumbnailImage videoId={video.videoId} fallbackSrc={video.thumbnail} alt={video.title} className="w-20 sm:w-24 h-12 sm:h-14 rounded-xl object-cover" />
@@ -680,7 +680,7 @@ const VideoPage = () => {
             {TABS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key} onClick={() => setActiveTab(key)}
-                className={`flex items-center gap-2 px-4 sm:px-6 py-3.5 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${activeTab === key ? "text-white border-red-400" : "text-white/40 border-transparent hover:text-white/60"}`}
+                className={`flex items-center gap-2 px-4 sm:px-6 py-3.5 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${activeTab === key ? "text-white border-red-400" : "text-white/40 border-transparent hover:text-white/60 cursor-pointer active:scale-0.9"}`}
               >
                 <Icon className="w-3.5 h-3.5" /> {label}
               </button>
@@ -731,7 +731,7 @@ const VideoPage = () => {
                         type="button"
                         onClick={handleClearNote}
                         disabled={noteSaving || (!selectedVideo.note && !normalizedNoteDraft)}
-                        className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.05] disabled:opacity-50"
+                        className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
                       >
                         Clear
                       </button>
@@ -739,7 +739,7 @@ const VideoPage = () => {
                         type="button"
                         onClick={handleSaveNote}
                         disabled={noteSaving || !noteIsDirty}
-                        className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-4 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                        className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-4 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer active:scale-0.9"
                       >
                         {noteSaving ? "Saving..." : "Save note"}
                       </button>
@@ -769,7 +769,7 @@ const VideoPage = () => {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingMedia}
-                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.05] text-xs sm:text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.05] text-xs sm:text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer active:scale-0.9"
                     >
                       <IC.Paperclip className="w-3.5 h-3.5" />
                       <span className="sm:hidden">Attach</span>
@@ -779,7 +779,7 @@ const VideoPage = () => {
                     <button
                       type="button"
                       onClick={isRecording ? stopRecording : startRecording}
-                      className={`flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs sm:text-sm font-medium transition-colors ${isRecording ? "bg-red-600 text-white" : "border border-white/10 bg-white/[0.05] hover:bg-white/10"
+                      className={`flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs sm:text-sm font-medium transition-colors ${isRecording ? "bg-red-600 text-white" : "border border-white/10 bg-white/[0.05] hover:bg-white/10 cursor-pointer active:scale-0.9"
                         }`}
                     >
                       <IC.Mic className="w-3.5 h-3.5" />
@@ -806,7 +806,7 @@ const VideoPage = () => {
                     <button
                       type="submit"
                       disabled={!chatMessage.trim()}
-                      className="flex items-center gap-1.5 px-3 sm:px-5 py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shrink-0"
+                      className="flex items-center gap-1.5 px-3 sm:px-5 py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shrink-0 cursor-pointer active:scale-0.9"
                     >
                       <IC.Send className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline">Send</span>
@@ -875,7 +875,7 @@ const VideoPage = () => {
                       <p className="text-xs text-white/40 mt-1 font-medium">Persistent invite link for this room.</p>
                     </div>
                     {isOwner && (
-                      <button onClick={() => handleInvite(false)} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white text-black text-xs font-semibold whitespace-nowrap">
+                      <button onClick={() => handleInvite(false)} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white text-black text-xs font-semibold whitespace-nowrap cursor-pointer active:scale-0.9">
                         <IC.Link2 className="w-3.5 h-3.5" /> Get link
                       </button>
                     )}
@@ -884,11 +884,11 @@ const VideoPage = () => {
                     <div className="space-y-2.5">
                       <input value={inviteLink} readOnly className="w-full px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs font-medium" />
                       <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => navigator.clipboard.writeText(inviteLink)} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 text-xs font-medium hover:bg-white/5">
+                        <button onClick={() => navigator.clipboard.writeText(inviteLink)} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 text-xs font-medium hover:bg-white/5 cursor-pointer active:scale-0.9">
                           <IC.Copy className="w-3.5 h-3.5" /> Copy
                         </button>
                         {isOwner && (
-                          <button onClick={() => handleInvite(true)} disabled={regeneratingInvite} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-red-500/30 text-xs text-red-200 font-medium disabled:opacity-50 hover:bg-red-500/10">
+                          <button onClick={() => handleInvite(true)} disabled={regeneratingInvite} className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-red-500/30 text-xs text-red-200 font-medium disabled:opacity-50 hover:bg-red-500/10 cursor-pointer active:scale-0.9 ">
                             <IC.RefreshCw className="w-3.5 h-3.5" />
                             {regeneratingInvite ? "Regenerating..." : "Regenerate"}
                           </button>
@@ -912,7 +912,7 @@ const VideoPage = () => {
                       <button
                         onClick={handleVisibilityToggle}
                         disabled={visibilitySaving}
-                        className={`px-3 py-2 rounded-2xl text-xs font-semibold transition-colors disabled:opacity-50 ${playlist.isPublic ? "bg-emerald-500 text-black" : "bg-white text-black"
+                        className={`px-3 py-2 rounded-2xl text-xs font-semibold transition-colors disabled:opacity-50 ${playlist.isPublic ? "bg-emerald-500 text-black" : "bg-white text-black cursor-pointer active:scale-0.9"
                           }`}
                       >
                         {visibilitySaving ? "Saving..." : playlist.isPublic ? "Make private" : "Make public"}
@@ -938,7 +938,7 @@ const VideoPage = () => {
                             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed ${active
                                 ? "border-red-400/60 bg-red-500/15 text-red-100"
                                 : "border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/[0.06]"
-                              }`}
+                              } cursor-pointer active:scale-0.9`}
                           >
                             {topic}
                           </button>
@@ -965,7 +965,7 @@ const VideoPage = () => {
                           type="button"
                           onClick={handleAddCustomTopic}
                           disabled={!normalizeTopicLabel(customTopicDraft) || !canAddMoreTopics}
-                          className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50"
+                          className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
                         >
                           Add topic
                         </button>
@@ -985,7 +985,7 @@ const VideoPage = () => {
                           type="button"
                           onClick={handleSaveTopics}
                           disabled={topicSaving || !topicsDirty}
-                          className="rounded-2xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50"
+                          className="rounded-2xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
                         >
                           {topicSaving ? "Saving topics..." : "Save topics"}
                         </button>
@@ -998,7 +998,7 @@ const VideoPage = () => {
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
                     <h3 className="font-semibold flex items-center gap-2 mb-1"><IC.LogOut className="w-4 h-4 text-red-400" />Leave playlist</h3>
                     <p className="text-xs text-white/40 mb-3 font-medium">You'll lose access but your progress stays.</p>
-                    <button onClick={handleLeave} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-red-500/30 text-red-200 text-xs font-medium hover:bg-red-500/10">
+                    <button onClick={handleLeave} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-red-500/30 text-red-200 text-xs font-medium hover:bg-red-500/10 cursor-pointer active:scale-0.9">
                       <IC.LogOut className="w-3.5 h-3.5" /> Leave room
                     </button>
                   </div>
@@ -1036,7 +1036,7 @@ const VideoPage = () => {
                       </div>
                       {isOwner && (
                         <button onClick={() => handleRemoveMember(member.id || member._id)} disabled={removingMemberId === (member.id || member._id)}
-                          className="shrink-0 flex items-center gap-1 text-xs text-white/30 hover:text-red-300 font-medium disabled:opacity-50 transition-colors">
+                          className="shrink-0 flex items-center gap-1 text-xs text-white/30 cursor-pointer active:scale-0.9 hover:text-red-300 font-medium disabled:opacity-50 transition-colors">
                           <IC.X className="w-3 h-3" />
                           <span className="hidden sm:inline">{removingMemberId === (member.id || member._id) ? "..." : "Remove"}</span>
                         </button>
@@ -1055,7 +1055,7 @@ const VideoPage = () => {
         <div className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 max-w-xs sm:max-w-sm w-full rounded-2xl bg-red-600 text-white px-4 sm:px-5 py-3 sm:py-4 shadow-2xl z-50">
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-medium">{error}</p>
-            <button onClick={() => setError("")} className="shrink-0 text-white/70 hover:text-white"><IC.X className="w-4 h-4" /></button>
+            <button onClick={() => setError("")} className="shrink-0 text-white/70 cursor-pointer active:scale-0.9 hover:text-white"><IC.X className="w-4 h-4" /></button>
           </div>
         </div>
       )}

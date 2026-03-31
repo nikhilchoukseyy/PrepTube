@@ -1,5 +1,7 @@
 ﻿import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Playlist from "../models/Playlist.js";
+import ChatMessage from "../models/ChatMessage.js";
 import dotenv from "dotenv";
 import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, serializeUser } from "../utils/userIdentity.js";
 import { sendWelcomeEmail, sendPasswordResetEmail } from "../utils/emailService.js";
@@ -207,5 +209,41 @@ export const updateProfile = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const ownedPlaylists = await Playlist.find({ owner: userId }).select("_id");
+    const ownedPlaylistIds = ownedPlaylists.map((playlist) => playlist._id);
+
+    if (ownedPlaylistIds.length > 0) {
+      await Promise.all([
+        ChatMessage.deleteMany({ playlist: { $in: ownedPlaylistIds } }),
+        Playlist.deleteMany({ _id: { $in: ownedPlaylistIds } }),
+      ]);
+    }
+
+    await Promise.all([
+      Playlist.updateMany(
+        { members: userId },
+        { $pull: { members: userId } }
+      ),
+      Playlist.updateMany(
+        { "progress.user": userId },
+        { $pull: { progress: { user: userId } } }
+      ),
+      Playlist.updateMany(
+        { "videoNotes.user": userId },
+        { $pull: { videoNotes: { user: userId } } }
+      ),
+      ChatMessage.deleteMany({ sender: userId }),
+      User.deleteOne({ _id: userId }),
+    ]);
+
+    return res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Unable to delete account" });
   }
 };

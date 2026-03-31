@@ -200,7 +200,7 @@ const CoursesPage = () => {
               <button
                 type="submit"
                 disabled={creating || !playlistUrl.trim()}
-                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shadow-lg shadow-red-500/20 whitespace-nowrap shrink-0 hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shadow-lg shadow-red-500/20 whitespace-nowrap shrink-0 hover:opacity-90 transition-opacity cursor-pointer active:scale-0.9"
               >
                 {creating
                   ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -227,7 +227,7 @@ const CoursesPage = () => {
               <button
                 onClick={handleJoinPlaylist}
                 disabled={joining || !joinToken.trim()}
-                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white text-black font-semibold disabled:opacity-50 text-sm hover:bg-white/90 transition-colors whitespace-nowrap shrink-0"
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white text-black font-semibold disabled:opacity-50 text-sm hover:bg-white/90 transition-colors whitespace-nowrap shrink-0 cursor-pointer active:scale-0.9"
               >
                 {joining
                   ? <span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -370,7 +370,7 @@ const CoursesPage = () => {
                         <button
                           onClick={() => handleDeletePlaylist(playlist.playlistId)}
                           disabled={deletingId === playlist.playlistId}
-                          className="flex items-center gap-1.5 text-xs text-white/25 hover:text-red-400 disabled:opacity-50 transition-colors font-medium"
+                          className="flex items-center gap-1.5 text-xs text-white/25 hover:text-red-400 disabled:opacity-50 transition-colors font-medium cursor-pointer active:scale-0.9"
                         >
                           <IC.Trash className="w-3.5 h-3.5" />
                           {deletingId === playlist.playlistId ? "Deleting..." : "Delete room"}

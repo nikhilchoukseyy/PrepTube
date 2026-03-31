@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
@@ -24,6 +24,8 @@ const ProfilePage = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const avatarInputRef = useRef(null);
 
   useEffect(() => {
@@ -69,6 +71,7 @@ const ProfilePage = () => {
     event.preventDefault();
     setSaving(true);
     setStatus("");
+    setDeleteStatus("");
     try {
       const res = await axios.patch(`${API_URL}/users/profile`, { username, avatar }, { headers: authHeaders() });
       const updatedUser = updateStoredUser(res.data.user);
@@ -85,6 +88,28 @@ const ProfilePage = () => {
   };
 
   const handleLogout = () => { clearStoredAuth(); navigate("/"); };
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "Delete your account permanently? This will remove your profile, playlists you own, chat messages, notes, and saved progress. This cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setDeleteStatus("");
+    setStatus("");
+
+    try {
+      await axios.delete(`${API_URL}/users/me`, { headers: authHeaders() });
+      clearStoredAuth();
+      navigate("/", { replace: true });
+    } catch (err) {
+      setDeleteStatus(err.response?.data?.message || "Unable to delete account.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleResetAvatar = () => {
     setAvatar("");
     setStatus("");
@@ -123,7 +148,7 @@ const ProfilePage = () => {
           <div className="mt-6 w-full space-y-2">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-white/10 text-white/60 hover:text-red-200 hover:border-red-500/30 transition-colors text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-white/10 text-white/60 hover:text-red-200 hover:border-red-500/30 transition-colors text-sm font-medium cursor-pointer active:scale-0.9"
             >
               <IC.LogOut className="w-4 h-4" /> Sign out
             </button>
@@ -167,14 +192,14 @@ const ProfilePage = () => {
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={avatarUploading}
-                  className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50"
+                  className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
                 >
                   {avatarUploading ? "Processing..." : avatar ? "Change photo" : "Upload photo"}
                 </button>
                 <button
                   type="button"
                   onClick={handleResetAvatar}
-                  className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/55 hover:bg-white/[0.05]"
+                  className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/55 hover:bg-white/[0.05] cursor-pointer active:scale-0.9"
                 >
                   Reset
                 </button>
@@ -219,14 +244,47 @@ const ProfilePage = () => {
 
             <button
               type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shadow-lg shadow-red-500/20 hover:scale-[1.01] active:scale-[0.99] transition-transform"
+              disabled={saving || deleting}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shadow-lg shadow-red-500/20 hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer active:scale-0.9"
             >
               {saving
                 ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : <IC.Check className="w-4 h-4" />}
               {saving ? "Saving..." : "Save changes"}
             </button>
+
+            <div className="rounded-[24px] border border-red-500/20 bg-red-500/[0.08] p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-2xl bg-red-500/10 p-2 text-red-200">
+                  <IC.Trash className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-red-100">Delete account</h3>
+                  <p className="mt-1 text-sm text-red-100/70">
+                    Permanently remove your PrepTube account and the content tied to it. This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              {deleteStatus && (
+                <div className="mt-4 flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">
+                  <IC.X className="w-4 h-4 shrink-0" />
+                  {deleteStatus}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleting || saving}
+                className="mt-4 flex items-center gap-2 rounded-2xl border border-red-500/30 px-4 py-3 text-sm font-semibold text-red-100 hover:bg-red-500/10 disabled:opacity-50 cursor-pointer active:scale-0.9"
+              >
+                {deleting
+                  ? <span className="w-4 h-4 border-2 border-red-100/30 border-t-red-100 rounded-full animate-spin" />
+                  : <IC.Trash className="w-4 h-4" />}
+                {deleting ? "Deleting account..." : "Delete account"}
+              </button>
+            </div>
           </form>
         </section>
       </main>
