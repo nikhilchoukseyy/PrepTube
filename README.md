@@ -4,6 +4,10 @@ PrepTube turns a YouTube playlist into a shared study room. A learner can import
 
 Status: pre-launch MVP
 
+## Production Notes
+
+For a production-focused view of current limits, scaling risks, free-tier dependencies, and upgrade priorities, see [PRODUCTION_CONSTRAINTS.md](./PRODUCTION_CONSTRAINTS.md).
+
 ## What The App Does
 
 PrepTube currently supports:
@@ -645,6 +649,7 @@ CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 
 EMAIL_USER=your_gmail_address
 EMAIL_PASS=your_gmail_app_password

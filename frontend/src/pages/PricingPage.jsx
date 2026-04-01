@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import posthog from "posthog-js";
 import Navbar from "../components/Navbar";
@@ -147,16 +147,16 @@ const PricingPage = () => {
               type="button"
               onClick={onBuyNow}
               disabled={buying}
-              className="mt-8 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white text-black text-sm font-semibold hover:bg-white/90 active:bg-white/80 transition-colors shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-8 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white text-black text-sm font-semibold hover:bg-white/90 active:bg-white/80 transition-colors shadow-lg disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer active:scale-0.9"
             >
               {buying ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin " />
                   Securing checkout...
                 </>
               ) : (
                 <>
-                  <IC.Zap className="w-4 h-4 text-orange-500" />
+                  <IC.Zap className="w-4 h-4 text-orange-500 " />
                   Subscribe now
                 </>
               )}

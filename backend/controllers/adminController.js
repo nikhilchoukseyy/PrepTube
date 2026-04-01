@@ -1,6 +1,7 @@
 import Playlist from "../models/Playlist.js";
+import Payment from "../models/Payment.js";
 import User from "../models/User.js";
-import { PRO_PLAN, paymentStore } from "./paymentController.js";
+import { PRO_PLAN } from "./paymentController.js";
 
 const ANALYTICS_TIMEZONE = "Asia/Kolkata";
 const SIGNUP_WINDOW_DAYS = 30;
@@ -176,10 +177,10 @@ export const getAdminAnalytics = async (req, res) => {
     const logins = buildDailySeries(loginsRaw, signupsStartDate, SIGNUP_WINDOW_DAYS);
     const hourlyActivity = buildHourlySeries(hourlySignupRaw, hourlyLoginRaw);
 
-    const paidPurchaseRecords = Array.from(paymentStore.values())
-      .filter((record) => record?.status === "paid")
-      .sort((left, right) => new Date(right.verifiedAt || right.createdAt) - new Date(left.verifiedAt || left.createdAt))
-      .slice(0, RECENT_PURCHASE_LIMIT);
+    const paidPurchaseRecords = await Payment.find({ status: "paid" })
+      .sort({ verifiedAt: -1, createdAt: -1 })
+      .limit(RECENT_PURCHASE_LIMIT)
+      .lean();
 
     const purchaseUserIds = Array.from(
       new Set(paidPurchaseRecords.map((record) => String(record.userId || "")).filter(Boolean))

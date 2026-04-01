@@ -1,4 +1,5 @@
-﻿import express from "express";
+import express from "express";
+import rateLimit from "express-rate-limit";
 import {
   createPlaylist,
   deletePlaylist,
@@ -21,9 +22,16 @@ import { protect } from "../middleware/authMiddleware.js";
 import { enforceMemberLimit } from "../middleware/planMiddleware.js";
 
 const router = express.Router();
+const playlistImportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Import limit reached. Please wait before importing another playlist." },
+});
 
 router.get("/explore", getExplorePlaylists);
-router.post("/create", protect, createPlaylist);
+router.post("/create", playlistImportLimiter, protect, createPlaylist);
 router.get("/my-playlists", protect, getUserPlaylist);
 router.post("/mark", protect, markVideoCompleted);
 router.post("/unmark", protect, unmarkVideoCompleted);

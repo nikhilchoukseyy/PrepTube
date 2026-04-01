@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
     isPremium: { type: Boolean, default: false },
     plan: { type: String, enum: ["free", "premium"], default: "free" },
     premiumExpiresAt: { type: Date, default: null },
+    processedPaymentOrderIds: { type: [String], default: [], select: false },
     lastLoginAt: { type: Date, default: null },
     playlists: [{ type: mongoose.Schema.Types.ObjectId, ref: "Playlist" }],
     passwordResetToken: {

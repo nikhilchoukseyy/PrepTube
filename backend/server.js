@@ -11,6 +11,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import passport from "./config/passport.js";
 import setupSocket from "./socket/index.js";
 import compression from 'compression';
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 connectDB();
@@ -18,11 +19,21 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 setupSocket(server);
+app.set("trust proxy", 1);
 
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+  skip: (req) => req.path.includes("/webhook"),
+});
 
 app.use(compression());
 app.use(
@@ -32,13 +43,14 @@ app.use(
     credentials: true,
   })
 );
+app.use("/api", globalApiLimiter);
+app.use("/api/payment", paymentRoutes);
 app.use(express.json({ limit: "25mb" }));
 app.use(passport.initialize());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/playlists", playlistRoutes);
-app.use("/api/payment", paymentRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {
