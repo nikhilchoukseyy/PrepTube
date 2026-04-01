@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import posthog from "posthog-js";
 import "./index.css";
 import App from "./App.jsx";
+import { inject } from '@vercel/analytics';
+
+inject();
 
 const posthogKey = import.meta.env.VITE_POSTHOG_KEY;
 
