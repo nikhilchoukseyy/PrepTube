@@ -1,6 +1,7 @@
 ﻿import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import { clearStoredAuth, getStoredUser, getToken } from "../utils/auth";
+import preptubeLogo from "../assets/preptube_logo.png";
 
 const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -27,7 +28,7 @@ const Navbar = () => {
   const user = useMemo(() => getStoredUser(), [location.pathname]);
 
   const links = [
-    { label: "Courses", to: "/courses" },
+    { label: "Courses", to: isLoggedIn ? "/courses" : "/login?redirect=/courses" },
     { label: "Explore", to: "/explore" },
     { label: "Pricing", to: "/pricing" },
   ];
@@ -69,9 +70,10 @@ const Navbar = () => {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
+            {/* <span className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
               PrepTube
-            </span>
+            </span> */}
+            <img src={preptubeLogo} alt="PrepTube Logo" className="w-12 h-12 bg-transparent" />
           </Link>
 
           {/* Desktop Nav Links */}

@@ -3,7 +3,7 @@ import User from "../models/User.js";
 import Playlist from "../models/Playlist.js";
 import ChatMessage from "../models/ChatMessage.js";
 import dotenv from "dotenv";
-import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, serializeUser } from "../utils/userIdentity.js";
+import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, resolveAvatarSource, serializeUser } from "../utils/userIdentity.js";
 import { sendWelcomeEmail, sendPasswordResetEmail, sendOwnerQuestionEmail } from "../utils/emailService.js";
 import { trackEvent } from "../utils/analytics.js";
 import crypto from "crypto";
@@ -53,6 +53,7 @@ export const registerUser = async (req, res) => {
       password,
       username,
       avatar: normalizedAvatar || buildAvatarUrl(username),
+      avatarSource: normalizedAvatar ? "custom" : "generated",
       lastLoginAt: new Date(),
     });
 
@@ -194,7 +195,7 @@ export const loginUser = async (req, res) => {
     }
 
     const user = await User.findOne({ email }).select(
-      "name email username avatar password googleId isPremium plan premiumExpiresAt role lastLoginAt passwordResetToken"
+      "name email username avatar avatarSource password googleId isPremium plan premiumExpiresAt role lastLoginAt passwordResetToken"
     );
 
     if (user?.googleId && !user.password) {
@@ -207,6 +208,9 @@ export const loginUser = async (req, res) => {
       }
       if (!user.avatar) {
         user.avatar = buildAvatarUrl(user.username || user.name || user.email);
+        user.avatarSource = "generated";
+      } else if (!user.avatarSource) {
+        user.avatarSource = resolveAvatarSource(user);
       }
       user.lastLoginAt = new Date();
       await user.save();
@@ -247,8 +251,12 @@ export const updateProfile = async (req, res) => {
 
     if (avatar !== undefined) {
       user.avatar = normalizedAvatar || buildAvatarUrl(user.username || user.name || user.email);
+      user.avatarSource = normalizedAvatar ? "custom" : "generated";
     } else if (!user.avatar) {
       user.avatar = buildAvatarUrl(user.username || user.name || user.email);
+      user.avatarSource = "generated";
+    } else if (!user.avatarSource) {
+      user.avatarSource = resolveAvatarSource(user);
     }
 
     await user.save();

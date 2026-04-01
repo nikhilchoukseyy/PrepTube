@@ -5,7 +5,7 @@ import io from "socket.io-client";
 import posthog from "posthog-js";
 import Navbar from "../components/Navbar";
 import ChatMessage from "../components/ChatMessage";
-import StreakBadge from "../components/StreakBadge";
+import StreakBadge, { BadgeIcon } from "../components/StreakBadge";
 import { API_URL, SOCKET_URL, authHeaders, getStoredUser, getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { MAX_PLAYLIST_TOPICS, buildPlaylistTopicOptions, dedupePlaylistTopics, normalizeTopicLabel, sameTopicSet } from "../utils/playlistTopics";
@@ -52,6 +52,14 @@ const TABS = [
 const getEntityId = (value) => value?.id || value?._id || "";
 
 const TOPIC_LIMIT_HINT = `${MAX_PLAYLIST_TOPICS} topics max`;
+const BADGE_TIERS = [
+  { key: "fire", days: 10, label: "On Fire", emoji: "🔥" },
+  { key: "charged", days: 20, label: "Charged", emoji: "⚡" },
+  { key: "diamond", days: 50, label: "Diamond", emoji: "💎" },
+  { key: "legend", days: 100, label: "Legend", emoji: "👑" },
+  { key: "mythic", days: 200, label: "Mythic", emoji: "🏆" },
+];
+const BADGE_BY_KEY = Object.fromEntries(BADGE_TIERS.map((tier) => [tier.key, tier]));
 
 const VideoPage = () => {
   const { id } = useParams();
@@ -74,6 +82,7 @@ const VideoPage = () => {
   const [topicSaving, setTopicSaving] = useState(false);
   const [topicDrafts, setTopicDrafts] = useState([]);
   const [customTopicDraft, setCustomTopicDraft] = useState("");
+  const [badgeToast, setBadgeToast] = useState("");
   const [removingMemberId, setRemovingMemberId] = useState("");
   const [regeneratingInvite, setRegeneratingInvite] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar toggle
@@ -120,6 +129,12 @@ const VideoPage = () => {
     setTopicDrafts(dedupePlaylistTopics(playlist?.topics || []));
     setCustomTopicDraft("");
   }, [playlist?.playlistId, playlist?.topics]);
+
+  useEffect(() => {
+    if (!badgeToast) return undefined;
+    const timeoutId = window.setTimeout(() => setBadgeToast(""), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [badgeToast]);
 
   useEffect(() => {
     if (!playlist) return undefined;
@@ -170,8 +185,42 @@ const VideoPage = () => {
         await fetch(`${API_URL}/playlists/${id}/time`, { method: "POST", keepalive: true, headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ minutesSpent }) });
         return;
       }
+      const previousBadgeKeys = new Set(playlist?.requesterProgress?.earnedBadges || []);
       const res = await axios.post(`${API_URL}/playlists/${id}/time`, { minutesSpent }, { headers: authHeaders() });
-      setPlaylist((cur) => cur ? { ...cur, requesterProgress: { ...cur.requesterProgress, ...res.data.streak } } : cur);
+      const nextEarnedBadges = res.data.streak?.earnedBadges || res.data.earnedBadges || [];
+      const currentUserId = String(currentUser?.id || currentUser?._id || "");
+
+      setPlaylist((cur) => {
+        if (!cur) return cur;
+
+        return {
+          ...cur,
+          owner:
+            String(cur.owner?.id || cur.owner?._id || "") === currentUserId
+              ? { ...cur.owner, earnedBadges: nextEarnedBadges }
+              : cur.owner,
+          members: (cur.members || []).map((member) =>
+            String(member?.id || member?._id || "") === currentUserId
+              ? { ...member, earnedBadges: nextEarnedBadges }
+              : member
+          ),
+          requesterProgress: {
+            ...cur.requesterProgress,
+            ...res.data.streak,
+            earnedBadges: nextEarnedBadges,
+          },
+        };
+      });
+
+      const unlockedBadge = nextEarnedBadges
+        .filter((badgeKey) => !previousBadgeKeys.has(badgeKey))
+        .map((badgeKey) => BADGE_BY_KEY[badgeKey])
+        .filter(Boolean)
+        .sort((left, right) => right.days - left.days)[0];
+
+      if (unlockedBadge) {
+        setBadgeToast(`${unlockedBadge.emoji} You earned the ${unlockedBadge.label} badge!`);
+      }
     } catch { trackingRef.current.accruedMs += minutesSpent * 60000; }
   };
 
@@ -507,6 +556,20 @@ const VideoPage = () => {
     });
   }, [playlist]);
 
+  const badgeLookup = useMemo(() => {
+    const entries = [];
+
+    if (playlist?.owner) {
+      entries.push([String(playlist.owner.id || playlist.owner._id), playlist.owner.earnedBadges || []]);
+    }
+
+    for (const member of playlist?.members || []) {
+      entries.push([String(member.id || member._id), member.earnedBadges || []]);
+    }
+
+    return new Map(entries.filter(([userId]) => userId));
+  }, [playlist]);
+
   if (loading) return (
     <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
@@ -635,6 +698,7 @@ const VideoPage = () => {
               <StreakBadge
                 currentStreak={playlist.requesterProgress?.currentStreak || 0}
                 longestStreak={playlist.requesterProgress?.longestStreak || 0}
+                earnedBadges={playlist.requesterProgress?.earnedBadges || []}
                 todayMinutes={playlist.requesterProgress?.todayMinutes || 0}
                 timeZone={playlist.requesterProgress?.streakTimezone || "Asia/Kolkata"}
               />
@@ -772,7 +836,13 @@ const VideoPage = () => {
             <div className="flex flex-col" style={{ height: "min(560px, 70vh)" }}>
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                 {messages.length === 0 && <p className="text-white/30 text-sm font-medium">No messages yet. Start the conversation.</p>}
-                {messages.map((msg) => <ChatMessage key={msg._id || `${msg.createdAt}-${msg.message}`} message={msg} />)}
+                {messages.map((msg) => (
+                  <ChatMessage
+                    key={msg._id || `${msg.createdAt}-${msg.message}`}
+                    message={msg}
+                    nameSuffix={<BadgeIcon earnedBadges={badgeLookup.get(getEntityId(msg.sender))} size={16} />}
+                  />
+                ))}
                 <div ref={chatEndRef} />
               </div>
               <form onSubmit={handleSendMessage} className="p-3 sm:p-4 border-t border-white/10 space-y-2.5">
@@ -1036,7 +1106,10 @@ const VideoPage = () => {
                       <img src={playlist.owner.avatar} alt={playlist.owner.username} className="w-8 h-8 rounded-full object-cover" />
                     ) : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><IC.User className="w-4 h-4 text-white/30" /></div>}
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm truncate">@{playlist.owner?.username || playlist.owner?.name}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-semibold text-sm truncate">@{playlist.owner?.username || playlist.owner?.name}</p>
+                        <BadgeIcon earnedBadges={playlist.owner?.earnedBadges} size={16} />
+                      </div>
                       <span className="text-[10px] text-amber-400 font-medium flex items-center gap-1"><IC.Crown className="w-2.5 h-2.5" />Owner</span>
                     </div>
                   </div>
@@ -1045,7 +1118,10 @@ const VideoPage = () => {
                       <div className="flex items-center gap-3 min-w-0">
                         {member.avatar ? <img src={member.avatar} alt={member.username} className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><IC.User className="w-4 h-4 text-white/30" /></div>}
                         <div className="min-w-0">
-                          <p className="font-medium text-sm truncate">@{member.username || member.name}</p>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="font-medium text-sm truncate">@{member.username || member.name}</p>
+                            <BadgeIcon earnedBadges={member.earnedBadges} size={16} />
+                          </div>
                           <p className="text-[10px] text-white/30 font-medium truncate">{member.email}</p>
                         </div>
                       </div>
@@ -1072,6 +1148,12 @@ const VideoPage = () => {
             <p className="text-sm font-medium">{error}</p>
             <button onClick={() => setError("")} className="shrink-0 text-white/70 cursor-pointer active:scale-0.9 hover:text-white"><IC.X className="w-4 h-4" /></button>
           </div>
+        </div>
+      )}
+
+      {badgeToast && (
+        <div className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 max-w-xs sm:max-w-sm w-full rounded-2xl border border-amber-400/20 bg-[#1a1206] text-amber-100 px-4 sm:px-5 py-3 sm:py-4 shadow-2xl z-50">
+          <p className="text-sm font-medium">{badgeToast}</p>
         </div>
       )}
     </div>

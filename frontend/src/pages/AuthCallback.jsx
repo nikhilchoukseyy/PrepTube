@@ -13,7 +13,7 @@ const AuthCallback = () => {
     const isNewUser = params.get("isNewUser") === "true";
 
     if (!token) {
-      navigate("/login");
+      navigate("/login", { replace: true });
       return;
     }
 
@@ -25,10 +25,10 @@ const AuthCallback = () => {
         if (!data.user) throw new Error("No user returned");
         setStoredAuth(token, data.user);
         posthog.capture(isNewUser ? "user_signed_up" : "user_logged_in", { method: "google" });
-        window.location.href = redirect;
+        window.location.replace(redirect);
       })
       .catch(() => {
-        navigate("/login");
+        navigate("/login", { replace: true });
       });
   }, [navigate]);
 

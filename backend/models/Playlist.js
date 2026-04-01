@@ -36,6 +36,7 @@ const progressSchema = new mongoose.Schema(
     currentStreak: { type: Number, default: 0 },
     longestStreak: { type: Number, default: 0 },
     lastStreakDate: { type: String },
+    earnedBadges: { type: [String], default: [] },
     dailyMinutes: [dailyMinutesSchema],
   },
   { _id: false }
@@ -77,4 +78,3 @@ playlistSchema.index({ members: 1 })
 playlistSchema.index({ 'progress.user': 1 }) 
 
 export default Playlist;
-

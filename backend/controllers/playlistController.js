@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import ChatMessage from "../models/ChatMessage.js";
 import Playlist from "../models/Playlist.js";
 import User from "../models/User.js";
+import { BADGE_TIERS, getNewlyEarnedBadges } from "../utils/badgeUtils.js";
 import { canAccessPlaylist, isPlaylistMember, isPlaylistOwner } from "../utils/playlistAccess.js";
 import { buildAvailablePlaylistTopics, normalizePlaylistTopics } from "../utils/playlistTopics.js";
 import { DEFAULT_TIMEZONE, getDateKeyInTimezone, serializeUser } from "../utils/userIdentity.js";
@@ -50,6 +51,7 @@ function ensureProgressEntry(playlist, userId) {
       currentStreak: 0,
       longestStreak: 0,
       lastStreakDate: null,
+      earnedBadges: [],
       dailyMinutes: [],
     };
     playlist.progress.push(userProgress);
@@ -159,6 +161,11 @@ function formatMember(user) {
   };
 }
 
+function mergeEarnedBadgesEntries(entries = []) {
+  const earnedSet = new Set(entries.filter(Boolean));
+  return BADGE_TIERS.filter((tier) => earnedSet.has(tier.key)).map((tier) => tier.key);
+}
+
 function normalizeProgressEntries(progress = []) {
   const mergedByUserId = new Map();
   let changed = false;
@@ -174,6 +181,7 @@ function normalizeProgressEntries(progress = []) {
     const completedVideos = Array.from(
       new Set([...(existing?.completedVideos || []), ...((entry?.completedVideos || []).filter(Boolean))])
     );
+    const earnedBadges = mergeEarnedBadgesEntries([...(existing?.earnedBadges || []), ...(entry?.earnedBadges || [])]);
     const dailyMinutes = mergeDailyMinutesEntries([...(existing?.dailyMinutes || []), ...(entry?.dailyMinutes || [])]);
     const streakStats = computeStreakStats(dailyMinutes, getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE));
 
@@ -183,12 +191,14 @@ function normalizeProgressEntries(progress = []) {
       currentStreak: streakStats.currentStreak,
       longestStreak: streakStats.longestStreak,
       lastStreakDate: streakStats.lastStreakDate,
+      earnedBadges,
       dailyMinutes,
     });
 
     if (
       existing ||
       completedVideos.length !== (entry?.completedVideos || []).length ||
+      earnedBadges.join("|") !== (entry?.earnedBadges || []).join("|") ||
       dailyMinutes.length !== (entry?.dailyMinutes || []).length ||
       (entry?.currentStreak || 0) !== streakStats.currentStreak ||
       (entry?.longestStreak || 0) !== streakStats.longestStreak ||
@@ -331,6 +341,7 @@ function computePlaylistStats(playlist) {
         completedVideos,
         currentStreak: entry?.currentStreak || 0,
         longestStreak: entry?.longestStreak || 0,
+        earnedBadges: entry?.earnedBadges || [],
         todayMinutes: +Number(todayMinutes || 0).toFixed(2),
       };
     })
@@ -636,6 +647,9 @@ export const getPlaylistDetail = async (req, res) => {
     const { totalSeconds, totalHours, userStats } = computePlaylistStats(playlist);
     const requesterId = String(req.user._id);
     const requesterProgress = playlist.progress.find((entry) => String(entry.user?._id || entry.user) === requesterId);
+    const progressByUserId = new Map(
+      (playlist.progress || []).map((entry) => [String(entry.user?._id || entry.user), entry])
+    );
     const completedSet = new Set(requesterProgress?.completedVideos || []);
     const noteByVideoId = new Map(
       (playlist.videoNotes || [])
@@ -663,8 +677,14 @@ export const getPlaylistDetail = async (req, res) => {
       playlist: {
         playlistId: playlist.playlistId,
         title: playlist.title,
-        owner: formatMember(playlist.owner),
-        members: (playlist.members || []).map(formatMember),
+        owner: {
+          ...formatMember(playlist.owner),
+          earnedBadges: progressByUserId.get(String(playlist.owner?._id || playlist.owner))?.earnedBadges || [],
+        },
+        members: (playlist.members || []).map((member) => ({
+          ...formatMember(member),
+          earnedBadges: progressByUserId.get(String(member?._id || member))?.earnedBadges || [],
+        })),
         videos,
         isPublic: playlist.isPublic,
         topics: normalizePlaylistTopics(playlist.topics || []),
@@ -679,6 +699,7 @@ export const getPlaylistDetail = async (req, res) => {
           completedVideos: requesterProgress?.completedVideos || [],
           currentStreak: requesterProgress?.currentStreak || 0,
           longestStreak: requesterProgress?.longestStreak || 0,
+          earnedBadges: requesterProgress?.earnedBadges || [],
           todayMinutes: +Number(todayMinutes || 0).toFixed(2),
           streakTimezone: DEFAULT_TIMEZONE,
         },
@@ -983,6 +1004,13 @@ export const logPlaylistTime = async (req, res) => {
     userProgress.currentStreak = streakStats.currentStreak;
     userProgress.longestStreak = streakStats.longestStreak;
     userProgress.lastStreakDate = streakStats.lastStreakDate;
+    userProgress.earnedBadges = userProgress.earnedBadges || [];
+
+    const newlyEarnedBadges = getNewlyEarnedBadges(userProgress.longestStreak, userProgress.earnedBadges);
+    if (newlyEarnedBadges.length > 0) {
+      userProgress.earnedBadges.push(...newlyEarnedBadges);
+      playlist.markModified("progress");
+    }
 
     await playlist.save();
 
@@ -1000,9 +1028,11 @@ export const logPlaylistTime = async (req, res) => {
         currentStreak: userProgress.currentStreak,
         longestStreak: userProgress.longestStreak,
         lastStreakDate: userProgress.lastStreakDate,
+        earnedBadges: userProgress.earnedBadges,
         todayMinutes: +Number(todayMinutes).toFixed(2),
         timeZone: DEFAULT_TIMEZONE,
       },
+      earnedBadges: userProgress.earnedBadges,
     });
   } catch (error) {
     console.error("logPlaylistTime error", error.message);

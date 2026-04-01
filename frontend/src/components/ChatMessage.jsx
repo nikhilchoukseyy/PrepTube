@@ -1,4 +1,4 @@
-﻿const ChatMessage = ({ message }) => {
+const ChatMessage = ({ message, nameSuffix = null }) => {
   const sender = message?.sender || {};
   const senderName = sender.username || sender.name || sender.email || "User";
   const avatar = sender.avatar;
@@ -14,7 +14,10 @@
       )}
       <div className="bg-gray-800 rounded-2xl rounded-tl-none px-4 py-3 max-w-[85%] space-y-2">
         <div>
-          <p className="text-xs text-gray-400 font-medium">{senderName}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs text-gray-400 font-medium">{senderName}</p>
+            {nameSuffix}
+          </div>
           {message.createdAt && (
             <p className="text-[11px] text-gray-500">{new Date(message.createdAt).toLocaleString()}</p>
           )}
@@ -39,4 +42,3 @@
 };
 
 export default ChatMessage;
-

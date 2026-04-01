@@ -94,7 +94,7 @@ const RegisterPage = () => {
         premiumExpiresAt: res.data.premiumExpiresAt,
       });
       posthog.capture("user_signed_up", { method: "email" });
-      navigate(redirectTo);
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {

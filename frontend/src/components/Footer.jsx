@@ -1,11 +1,11 @@
 const contactLinks = [
   {
     label: "Instagram",
-    href: "https://instagram.com/nikhilchoukseyy",
+    href: "https://instagram.com/preptube.online",
   },
   {
     label: "X.com",
-    href: "https://x.com",
+    href: "https://x.com/nikhilchoukseyy",
   },
   {
     label: "LinkedIn",
@@ -13,7 +13,7 @@ const contactLinks = [
   },
   {
     label: "Email",
-    href: "mailto:nikhilranger18@gmail.com",
+    href: "mailto:preptube.online@gmail.com",
   },
 ];
 

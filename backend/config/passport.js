@@ -2,7 +2,7 @@
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 import dotenv from "dotenv";
-import { buildAvatarUrl, generateUniqueUsername, isGeneratedAvatarUrl } from "../utils/userIdentity.js";
+import { buildAvatarUrl, generateUniqueUsername, resolveAvatarSource } from "../utils/userIdentity.js";
 import { trackEvent } from "../utils/analytics.js";
 
 dotenv.config();
@@ -28,8 +28,11 @@ passport.use(
               email: user.email || email,
             }, user._id);
           }
-          if (!user.avatar || (googleAvatar && isGeneratedAvatarUrl(user.avatar))) {
+          if (!user.avatar) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
+            user.avatarSource = googleAvatar ? "google" : "generated";
+          } else if (!user.avatarSource) {
+            user.avatarSource = resolveAvatarSource(user);
           }
           user.lastLoginAt = new Date();
           await user.save();
@@ -47,8 +50,11 @@ passport.use(
               email,
             }, user._id);
           }
-          if (!user.avatar || (googleAvatar && isGeneratedAvatarUrl(user.avatar))) {
+          if (!user.avatar) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
+            user.avatarSource = googleAvatar ? "google" : "generated";
+          } else if (!user.avatarSource) {
+            user.avatarSource = resolveAvatarSource(user);
           }
           user.lastLoginAt = new Date();
           await user.save();
@@ -68,6 +74,7 @@ passport.use(
           email,
           username,
           avatar: googleAvatar || buildAvatarUrl(username),
+          avatarSource: googleAvatar ? "google" : "generated",
           lastLoginAt: new Date(),
         });
 

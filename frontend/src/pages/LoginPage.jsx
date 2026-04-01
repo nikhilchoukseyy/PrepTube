@@ -47,7 +47,7 @@ const LoginPage = () => {
         premiumExpiresAt: res.data.premiumExpiresAt,
       });
       posthog.capture("user_logged_in", { method: "email" });
-      navigate(redirectTo);
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     } finally {

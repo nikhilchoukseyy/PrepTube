@@ -8,6 +8,10 @@ const GENERATED_AVATAR_HOSTS = [
   "api.dicebear.com/9.x/adventurer",
   "api.dicebear.com/9.x/fun-emoji",
 ];
+const GOOGLE_AVATAR_HOSTS = [
+  "googleusercontent.com",
+  "googleapis.com",
+];
 const DATA_IMAGE_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
 const MAX_AVATAR_LENGTH = 1_500_000;
 
@@ -27,6 +31,27 @@ export function buildAvatarUrl(seed = "PrepTube") {
 export function isGeneratedAvatarUrl(value = "") {
   if (typeof value !== "string") return false;
   return GENERATED_AVATAR_HOSTS.some((host) => value.includes(host));
+}
+
+export function isGoogleAvatarUrl(value = "") {
+  if (typeof value !== "string") return false;
+  return GOOGLE_AVATAR_HOSTS.some((host) => value.includes(host));
+}
+
+export function resolveAvatarSource(user = {}) {
+  if (user?.avatarSource) {
+    return user.avatarSource;
+  }
+
+  if (isGeneratedAvatarUrl(user?.avatar)) {
+    return "generated";
+  }
+
+  if (user?.googleId && isGoogleAvatarUrl(user?.avatar)) {
+    return "google";
+  }
+
+  return user?.avatar ? "custom" : "generated";
 }
 
 export function normalizeAvatarInput(value) {

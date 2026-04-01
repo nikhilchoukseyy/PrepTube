@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import { buildAvatarUrl, generateUniqueUsername } from "../utils/userIdentity.js";
+import { buildAvatarUrl, generateUniqueUsername, resolveAvatarSource } from "../utils/userIdentity.js";
 
 const protect = async (req, res, next) => {
   let token;
@@ -22,6 +22,10 @@ const protect = async (req, res, next) => {
       }
       if (!user.avatar) {
         user.avatar = buildAvatarUrl(user.username || user.name || user.email);
+        user.avatarSource = "generated";
+        didMutate = true;
+      } else if (!user.avatarSource) {
+        user.avatarSource = resolveAvatarSource(user);
         didMutate = true;
       }
       const hasPremiumFlag = user.isPremium === true || user.plan === "premium";

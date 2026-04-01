@@ -10,6 +10,11 @@ const userSchema = new mongoose.Schema(
     password: { type: String },
     googleId: { type: String },
     avatar: { type: String },
+    avatarSource: {
+      type: String,
+      enum: ["generated", "google", "custom"],
+      default: "generated",
+    },
     role: { type: String, default: "user" },
     isPremium: { type: Boolean, default: false },
     plan: { type: String, enum: ["free", "premium"], default: "free" },
@@ -32,6 +37,7 @@ const userSchema = new mongoose.Schema(
 userSchema.pre("save", async function preSave(next) {
   if (!this.avatar) {
     this.avatar = buildAvatarUrl(this.username || this.name || this.email);
+    this.avatarSource = "generated";
   }
 
   if (!this.isModified("password") || !this.password) {

@@ -75,5 +75,5 @@ export function authHeaders() {
 }
 
 export function requireAuthRedirect(navigate, redirectTo) {
-  navigate(`/login?redirect=${encodeURIComponent(redirectTo)}`);
+  navigate(`/login?redirect=${encodeURIComponent(redirectTo)}`, { replace: true });
 }
