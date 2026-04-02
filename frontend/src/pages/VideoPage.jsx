@@ -85,6 +85,7 @@ const VideoPage = () => {
   const [badgeToast, setBadgeToast] = useState("");
   const [removingMemberId, setRemovingMemberId] = useState("");
   const [regeneratingInvite, setRegeneratingInvite] = useState(false);
+  const [completionPendingVideoId, setCompletionPendingVideoId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar toggle
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -225,13 +226,20 @@ const VideoPage = () => {
   };
 
   const toggleComplete = async (videoId, completed) => {
+    if (completionPendingVideoId === videoId) return;
+
+    setCompletionPendingVideoId(videoId);
     try {
       await axios.post(`${API_URL}${completed ? "/playlists/unmark" : "/playlists/mark"}`, { playlistId: id, videoId }, { headers: authHeaders() });
       await fetchPlaylist();
       if (!completed) {
         posthog.capture("video_marked_complete", { playlistId: id, videoId });
       }
-    } catch (err) { setError(err.response?.data?.message || "Failed to update progress"); }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update progress");
+    } finally {
+      setCompletionPendingVideoId("");
+    }
   };
 
   const handleCopyInvite = async () => {
@@ -593,6 +601,7 @@ const VideoPage = () => {
   const members = uniqueMembers;
   const currentIndex = playlist.videos?.findIndex((v) => v.videoId === selectedVideo?.videoId) ?? -1;
   const nextVideo = currentIndex >= 0 ? playlist.videos[currentIndex + 1] : null;
+  const isSelectedVideoCompletionPending = completionPendingVideoId === selectedVideo?.videoId;
   const normalizedNoteDraft = noteDraft.trim();
   const selectedVideoNote = selectedVideo?.note || "";
   const noteIsDirty = normalizedNoteDraft !== selectedVideoNote;
@@ -604,6 +613,15 @@ const VideoPage = () => {
   ]);
   const topicsDirty = !sameTopicSet(topicDrafts, playlistTopics);
   const canAddMoreTopics = topicDrafts.length < MAX_PLAYLIST_TOPICS;
+  const mobilePlaylistPreviewStartIndex =
+    currentIndex >= 0
+      ? Math.min(currentIndex, Math.max(playlist.videos.length - 2, 0))
+      : 0;
+  const mobilePlaylistPreviewVideos = (playlist.videos || []).slice(
+    mobilePlaylistPreviewStartIndex,
+    mobilePlaylistPreviewStartIndex + 2
+  );
+  const mobileHiddenVideoCount = Math.max(playlist.videos.length - mobilePlaylistPreviewVideos.length, 0);
 
   return (
     <div className="min-h-screen bg-[#080808] text-white">
@@ -623,7 +641,7 @@ const VideoPage = () => {
                   className="absolute top-0 left-0 w-full h-full"
                   src={`https://www.youtube.com/embed/${selectedVideo.videoId}?autoplay=1&rel=0`}
                   title={selectedVideo.title}
-                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="autoplay;accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
               ) : (
@@ -662,11 +680,18 @@ const VideoPage = () => {
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   {selectedVideo && (
                     <button
+                      disabled={isSelectedVideoCompletionPending}
                       onClick={() => toggleComplete(selectedVideo.videoId, selectedVideo.completed)}
-                      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-semibold text-sm cursor-pointer transition-colors ${selectedVideo.completed ? "bg-emerald-500 text-black" : "bg-white text-black hover:bg-white/90"} cursor-pointer active:scale-0.9`}
+                      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-semibold text-sm transition-[transform,colors] disabled:cursor-wait disabled:opacity-80 ${selectedVideo.completed ? "bg-emerald-500 text-black" : "bg-white text-black hover:bg-white/90"} active:scale-[0.9]`}
                     >
-                      <IC.Check className={`w-4 h-4 ${selectedVideo.completed ? "text-black" : "text-black"}`} />
-                      {selectedVideo.completed ? "Done" : "Mark done"}
+                      {isSelectedVideoCompletionPending ? (
+                        <IC.RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <IC.Check className="w-4 h-4" />
+                      )}
+                      {isSelectedVideoCompletionPending
+                        ? selectedVideo.completed ? "Updating..." : "Marking..."
+                        : selectedVideo.completed ? "Done" : "Mark done"}
                     </button>
                   )}
                   {nextVideo && (
@@ -674,13 +699,6 @@ const VideoPage = () => {
                       <IC.SkipForward className="w-4 h-4" /> Next
                     </button>
                   )}
-                  {/* Mobile sidebar toggle */}
-                  <button
-                    onClick={() => setSidebarOpen((v) => !v)}
-                    className="xl:hidden flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-white/10 bg-white/[0.05] text-sm font-medium cursor-pointer active:scale-0.9"
-                  >
-                    <IC.Play className="w-3.5 h-3.5" /> Playlist ({playlist.videos.length})
-                  </button>
                 </div>
               </div>
 
@@ -704,6 +722,75 @@ const VideoPage = () => {
               />
             </div>
           </div>
+
+          {!sidebarOpen && playlist.videos.length > 0 && (
+            <div className="xl:hidden w-full rounded-[20px] border border-white/10 bg-white/[0.03] p-3 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">Playlist preview</p>
+                  <p className="mt-1 text-xs text-white/45 font-medium">
+                    Showing {mobilePlaylistPreviewVideos.length} of {playlist.videos.length} videos. Tap to expand the full playlist.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/[0.08] active:scale-[0.9]"
+                >
+                  Expand
+                  <IC.ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="grid gap-2">
+                {mobilePlaylistPreviewVideos.map((video, index) => (
+                  <button
+                    key={video.videoId}
+                    onClick={() => setSidebarOpen(true)}
+                    className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors ${selectedVideo?.videoId === video.videoId ? "border-red-400/40 bg-white/[0.06]" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05] active:scale-[0.9]"}`}
+                  >
+                    <div className="relative shrink-0">
+                      <ThumbnailImage
+                        videoId={video.videoId}
+                        fallbackSrc={video.thumbnail}
+                        alt={video.title}
+                        className="h-11 w-[4.5rem] rounded-xl object-cover"
+                        loading="lazy"
+                      />
+                      {video.completed && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60">
+                          <IC.Check className="w-4 h-4 text-emerald-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-xs font-semibold text-white">
+                        {mobilePlaylistPreviewStartIndex + index + 1}. {video.title}
+                      </p>
+                      <div className="mt-1 flex items-center gap-2 text-[10px] font-medium text-white/40">
+                        <span>{video.duration}</span>
+                        {selectedVideo?.videoId === video.videoId && (
+                          <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-red-200">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <IC.ChevronRight className="w-4 h-4 shrink-0 text-white/25" />
+                  </button>
+                ))}
+              </div>
+
+              {mobileHiddenVideoCount > 0 && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-left text-xs font-semibold text-white/55 hover:bg-white/[0.05] active:scale-[0.9]"
+                >
+                  <span>+{mobileHiddenVideoCount} more videos in this playlist</span>
+                  <IC.ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Right: Video list sidebar (collapsible on mobile) */}
           <aside className={`w-full xl:block rounded-[20px] sm:rounded-[28px] border border-white/10 bg-white/[0.03] overflow-hidden ${sidebarOpen ? "block" : "hidden xl:block"}`}>

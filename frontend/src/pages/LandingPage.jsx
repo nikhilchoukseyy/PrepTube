@@ -5,6 +5,7 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import { API_URL, getStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
+import { LIMITED_TIME_PRO_PROMO } from "../utils/promo";
 import { Volume2, VolumeX } from "lucide-react";
 import demoImg from "../assets/demo_img.png";
 import pasteUrlImg from "../assets/paste_url.png";
@@ -299,120 +300,159 @@ const LandingPage = () => {
             <div className="absolute right-0 top-20 h-[300px] w-[300px] rounded-full bg-orange-500/8 blur-[90px]" />
           </div>
 
-          <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-10 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-14">
-            <div className="w-full text-center lg:text-left">
-              <motion.h1
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl xl:text-7xl"
+          <div className="relative z-10 mx-auto max-w-6xl space-y-8">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.02 }}
+            >
+              <Link
+                to="/pricing"
+                className="group relative block overflow-hidden rounded-[28px] border border-red-400/20 bg-gradient-to-r from-[#140c0c] via-[#22120f] to-[#15100b] p-5 shadow-[0_24px_90px_rgba(249,115,22,0.14)] sm:p-6"
               >
-                Study YouTube playlists
-                <span className="mt-1 block bg-gradient-to-r from-red-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
-                  together, not alone.
-                </span>
-              </motion.h1>
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-amber-400/10 to-transparent blur-2xl" />
+                <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="max-w-3xl">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-100 animate-pulse">
+                      <span className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_12px_rgba(252,211,77,0.9)]" />
+                      {LIMITED_TIME_PRO_PROMO.badge}
+                    </div>
+                    <h2 className="mt-4 text-2xl font-black leading-tight text-white sm:text-3xl lg:text-[2.15rem]">
+                      {LIMITED_TIME_PRO_PROMO.heading}
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
+                      {LIMITED_TIME_PRO_PROMO.subtext}
+                    </p>
+                  </div>
 
-              <motion.p
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/60 sm:text-lg lg:mx-0"
-              >
-                PrepTube turns any playlist into a shared learning room with progress tracking, live chat, streaks, private notes, and room invites all in one tab.
-              </motion.p>
+                  <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
+                    <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/35">
+                      {LIMITED_TIME_PRO_PROMO.previousPriceLabel}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-500 to-orange-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-500/25 transition-transform group-hover:scale-[1.02]">
+                      {LIMITED_TIME_PRO_PROMO.ctaLabel}
+                      <Icon.ArrowRight />
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            <div className="flex flex-col items-center gap-10 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-14">
+              <div className="w-full text-center lg:text-left">
+                <motion.h1
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 }}
+                  className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl xl:text-7xl"
+                >
+                  Study YouTube playlists
+                  <span className="mt-1 block bg-gradient-to-r from-red-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
+                    together, not alone.
+                  </span>
+                </motion.h1>
+
+                <motion.p
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/60 sm:text-lg lg:mx-0"
+                >
+                  PrepTube turns any playlist into a shared learning room with progress tracking, live chat, streaks, private notes, and room invites all in one tab.
+                </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:items-start lg:justify-start"
+                >
+                  <Link
+                    to={heroCtaLink}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 px-6 py-3 text-sm font-semibold shadow-lg shadow-red-500/25 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:w-auto sm:text-base"
+                  >
+                    {user ? (
+                      <>
+                        <Icon.Play /> Open My Courses
+                      </>
+                    ) : (
+                      <>
+                        <Icon.Zap /> Start Learning
+                      </>
+                    )}
+                  </Link>
+                  <Link
+                    to="/explore"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 active:bg-white/15 sm:w-auto sm:text-base"
+                  >
+                    <Icon.Compass /> Explore Courses
+                  </Link>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.25 }}
+                  className="mt-8 flex items-center justify-center gap-5 text-xs text-white/35 lg:justify-start"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icon.CheckCircle />
+                    <span>Free to start</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Icon.Users />
+                    <span>Team rooms</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Icon.Flame />
+                    <span>Streak rewards</span>
+                  </span>
+                </motion.div>
+              </div>
 
               <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:items-start lg:justify-start"
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="w-full"
               >
-                <Link
-                  to={heroCtaLink}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 px-6 py-3 text-sm font-semibold shadow-lg shadow-red-500/25 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:w-auto sm:text-base"
+                <div
+                  className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-black/60 shadow-[0_40px_120px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:rounded-[32px]"
+                  style={{ aspectRatio: "16/9" }}
                 >
-                  {user ? (
+                  {demoVideoSrc ? (
                     <>
-                      <Icon.Play /> Open My Courses
+                      <video
+                        ref={videoRef}
+                        src={demoVideoSrc}
+                        poster={demoImg}
+                        autoPlay
+                        muted={isMuted}
+                        loop
+                        playsInline
+                        preload="auto"
+                        className="h-full w-full object-cover"
+                      />
+
+                      {/* Mute/Unmute button */}
+                      <button
+                        onClick={() => setIsMuted(!isMuted)}
+                        className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10 hover:bg-black/80 transition"
+                      >
+                        {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                        {isMuted ? "Unmute" : "Mute"}
+                      </button>
                     </>
                   ) : (
-                    <>
-                      <Icon.Zap /> Start Learning
-                    </>
-                  )}
-                </Link>
-                <Link
-                  to="/explore"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 active:bg-white/15 sm:w-auto sm:text-base"
-                >
-                  <Icon.Compass /> Explore Courses
-                </Link>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.25 }}
-                className="mt-8 flex items-center justify-center gap-5 text-xs text-white/35 lg:justify-start"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Icon.CheckCircle />
-                  <span>Free to start</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Icon.Users />
-                  <span>Team rooms</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Icon.Flame />
-                  <span>Streak rewards</span>
-                </span>
-              </motion.div>
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="w-full"
-            >
-              <div
-                className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-black/60 shadow-[0_40px_120px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:rounded-[32px]"
-                style={{ aspectRatio: "16/9" }}
-              >
-                {demoVideoSrc ? (
-                  <>
-                    <video
-                      ref={videoRef}
-                      src={demoVideoSrc}
-                      poster={demoImg}
-                      autoPlay
-                      muted={isMuted}
-                      loop
-                      playsInline
-                      preload="auto"
+                    <img
+                      src={demoImg}
+                      alt="Demo Preview"
                       className="h-full w-full object-cover"
                     />
-
-                    {/* Mute/Unmute button */}
-                    <button
-                      onClick={() => setIsMuted(!isMuted)}
-                      className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10 hover:bg-black/80 transition"
-                    >
-                      {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                      {isMuted ? "Unmute" : "Mute"}
-                    </button>
-                  </>
-                ) : (
-                  <img
-                    src={demoImg}
-                    alt="Demo Preview"
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </div>
-            </motion.div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
           </div>
         </section>
 

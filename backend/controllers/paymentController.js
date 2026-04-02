@@ -12,6 +12,11 @@ export const PRO_PLAN = Object.freeze({
   amount: 9900,
   currency: "INR",
 });
+const FREE_PRO_PROMO = Object.freeze({
+  id: "promo-free-pro-early-access-2026",
+  name: "PrepTube Pro Early Access",
+  durationDays: 30,
+});
 
 const PREMIUM_DURATION_MONTHS = 1;
 const WEBHOOK_PREMIUM_DURATION_DAYS = 30;
@@ -207,6 +212,50 @@ export const createOrder = async (req, res) => {
     console.error("createOrder error:", error);
     return res.status(error.status || 500).json({
       message: error.message || "Unable to create Razorpay order",
+    });
+  }
+};
+
+export const claimFreePro = async (req, res) => {
+  try {
+    const claimedAt = new Date();
+    const upgradeResult = await applyPremiumUpgrade({
+      userId: req.user._id,
+      orderId: FREE_PRO_PROMO.id,
+      extensionDateCalculator: (user) => {
+        const renewalBaseDate =
+          isPremiumActive(user) && user.premiumExpiresAt
+            ? new Date(user.premiumExpiresAt)
+            : claimedAt;
+        return addDays(renewalBaseDate, FREE_PRO_PROMO.durationDays);
+      },
+    });
+
+    if (upgradeResult.status === "missing_user") {
+      return res.status(404).json({
+        message: "User not found while activating Pro.",
+      });
+    }
+
+    trackEvent(req.user._id, "premium_free_claimed", {
+      promoId: FREE_PRO_PROMO.id,
+      status: upgradeResult.status,
+      premiumExpiresAt: toIsoString(upgradeResult.premiumExpiresAt),
+    });
+
+    return res.status(200).json({
+      message:
+        upgradeResult.status === "already_applied"
+          ? "Pro early access is already active on your account."
+          : "Pro early access unlocked successfully.",
+      user: upgradeResult.user ? serializeUser(upgradeResult.user) : null,
+      premiumExpiresAt: toIsoString(upgradeResult.premiumExpiresAt),
+      promo: FREE_PRO_PROMO,
+    });
+  } catch (error) {
+    console.error("claimFreePro error:", error);
+    return res.status(500).json({
+      message: error.message || "Unable to unlock Pro right now.",
     });
   }
 };

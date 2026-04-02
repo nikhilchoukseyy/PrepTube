@@ -171,7 +171,7 @@ const ExplorePage = () => {
                     </div>
                   </div>
 
-                  <div className="p-4 sm:p-5 flex flex-col flex-1 gap-3">
+                  <div onClick={() => handleJoin(playlist.playlistId)} className="p-4 sm:p-5 flex flex-col flex-1 gap-3 cursor-pointer">
                     <div className="flex-1">
                       <h2 className="text-base font-semibold leading-snug line-clamp-2">{playlist.title}</h2>
                       <p className="text-xs text-white/40 mt-1.5 font-medium flex items-center gap-1.5">
@@ -197,7 +197,7 @@ const ExplorePage = () => {
                     </div>
 
                     <button
-                      onClick={() => handleJoin(playlist.playlistId)}
+                      
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-black font-semibold hover:bg-white/90 active:bg-white/80 transition-colors text-sm cursor-pointer active:scale-0.9"
                     >
                       <IC.ArrowRight className="w-3.5 h-3.5" /> Join room
