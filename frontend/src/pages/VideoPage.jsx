@@ -88,6 +88,7 @@ const VideoPage = () => {
   const [completionPendingVideoId, setCompletionPendingVideoId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar toggle
   const chatEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const recorderRef = useRef(null);
   const recorderChunksRef = useRef([]);
@@ -100,6 +101,7 @@ const VideoPage = () => {
 
   useEffect(() => {
     if (!getToken()) { requireAuthRedirect(navigate, `/video/${id}`); return; }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     let mounted = true;
     const bootstrap = async () => {
       await Promise.all([fetchPlaylist(), fetchChatMessages()]);
@@ -120,7 +122,12 @@ const VideoPage = () => {
     };
   }, [id, navigate]);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    if (activeTab !== "chat") return;
+    const chatContainer = chatScrollRef.current;
+    if (!chatContainer) return;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }, [activeTab, messages]);
   useEffect(() => {
     setNoteDraft(selectedVideo?.note || "");
     setNoteFeedback("");
@@ -921,7 +928,7 @@ const VideoPage = () => {
           {/* ── Chat tab ── */}
           {activeTab === "chat" && (
             <div className="flex flex-col" style={{ height: "min(560px, 70vh)" }}>
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                 {messages.length === 0 && <p className="text-white/30 text-sm font-medium">No messages yet. Start the conversation.</p>}
                 {messages.map((msg) => (
                   <ChatMessage
