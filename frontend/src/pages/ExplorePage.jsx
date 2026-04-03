@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import UpgradePromptBanner from "../components/UpgradePromptBanner";
-import { API_URL, authHeaders, getToken, requireAuthRedirect } from "../utils/auth";
+import { API_URL, authHeaders, getStoredUser, getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { buildPlaylistTopicOptions, dedupePlaylistTopics } from "../utils/playlistTopics";
 import { IC } from "./Icons";
 
 const ExplorePage = () => {
+  const currentUser = getStoredUser();
+  const isAdmin = currentUser?.role === "admin";
   const [playlists, setPlaylists] = useState([]);
   const [availableTopics, setAvailableTopics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,11 @@ const ExplorePage = () => {
     }
   };
 
+  const handleOpen = (playlistId) => {
+    if (!getToken()) { requireAuthRedirect(navigate, "/explore"); return; }
+    navigate(`/video/${playlistId}`);
+  };
+
   return (
     <div className="min-h-screen bg-[#080808] text-white">
       <Navbar />
@@ -88,7 +95,9 @@ const ExplorePage = () => {
           </div>
           <h1 className="text-3xl sm:text-4xl font-black leading-tight">Public course rooms from the community</h1>
           <p className="text-white/55 text-sm sm:text-base font-medium max-w-2xl">
-            Browse public playlists, join a room in one click, and turn useful YouTube content into a shared learning environment.
+            {isAdmin
+              ? "Browse public playlists, open any room directly, and moderate community spaces without joining them."
+              : "Browse public playlists, join a room in one click, and turn useful YouTube content into a shared learning environment."}
           </p>
         </section>
 
@@ -171,7 +180,7 @@ const ExplorePage = () => {
                     </div>
                   </div>
 
-                  <div onClick={() => handleJoin(playlist.playlistId)} className="p-4 sm:p-5 flex flex-col flex-1 gap-3 cursor-pointer">
+                  <div onClick={() => (isAdmin ? handleOpen(playlist.playlistId) : handleJoin(playlist.playlistId))} className="p-4 sm:p-5 flex flex-col flex-1 gap-3 cursor-pointer">
                     <div className="flex-1">
                       <h2 className="text-base font-semibold leading-snug line-clamp-2">{playlist.title}</h2>
                       <p className="text-xs text-white/40 mt-1.5 font-medium flex items-center gap-1.5">
@@ -197,10 +206,9 @@ const ExplorePage = () => {
                     </div>
 
                     <button
-                      
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-black font-semibold hover:bg-white/90 active:bg-white/80 transition-colors text-sm cursor-pointer active:scale-0.9"
                     >
-                      <IC.ArrowRight className="w-3.5 h-3.5" /> Join room
+                      <IC.ArrowRight className="w-3.5 h-3.5" /> {isAdmin ? "Open room" : "Join room"}
                     </button>
                   </div>
                 </article>

@@ -84,6 +84,8 @@ const VideoPage = () => {
   const [customTopicDraft, setCustomTopicDraft] = useState("");
   const [badgeToast, setBadgeToast] = useState("");
   const [removingMemberId, setRemovingMemberId] = useState("");
+  const [deletingChatId, setDeletingChatId] = useState("");
+  const [deletingPlaylist, setDeletingPlaylist] = useState(false);
   const [regeneratingInvite, setRegeneratingInvite] = useState(false);
   const [completionPendingVideoId, setCompletionPendingVideoId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar toggle
@@ -109,6 +111,10 @@ const VideoPage = () => {
       const nextSocket = io(SOCKET_URL, { auth: { token: getToken() } });
       nextSocket.on("connect", () => nextSocket.emit("joinRoom", { playlistId: id }));
       nextSocket.on("newMessage", (msg) => setMessages((cur) => [...cur, msg]));
+      nextSocket.on("chatDeleted", ({ chatId }) => {
+        if (!chatId) return;
+        setMessages((cur) => cur.filter((message) => String(message._id) !== String(chatId)));
+      });
       nextSocket.on("error", (p) => setError(p?.message || "Socket error"));
       socketRef.current = nextSocket;
     };
@@ -146,6 +152,7 @@ const VideoPage = () => {
 
   useEffect(() => {
     if (!playlist) return undefined;
+    if (!playlist.access?.canTrackProgress) return undefined;
     trackingRef.current.lastActiveAt = document.visibilityState === "visible" ? Date.now() : null;
     const syncElapsed = () => {
       if (trackingRef.current.lastActiveAt) {
@@ -184,7 +191,7 @@ const VideoPage = () => {
   };
 
   const flushTrackedTime = async (useKeepAlive = false) => {
-    if (!playlist) return;
+    if (!playlist || !playlist.access?.canTrackProgress) return;
     const minutesSpent = +(trackingRef.current.accruedMs / 60000).toFixed(2);
     if (!minutesSpent || minutesSpent < 0.1) return;
     trackingRef.current.accruedMs = 0;
@@ -371,6 +378,32 @@ const VideoPage = () => {
     try { await axios.delete(`${API_URL}/playlists/${id}/members/${userId}`, { headers: authHeaders() }); await fetchPlaylist(); }
     catch (err) { setError(err.response?.data?.message || "Unable to remove member"); }
     finally { setRemovingMemberId(""); }
+  };
+
+  const handleDeleteChat = async (chatId) => {
+    if (!window.confirm("Delete this chat message from the public playlist?")) return;
+    setDeletingChatId(String(chatId));
+    try {
+      await axios.delete(`${API_URL}/playlists/${id}/chats/${chatId}`, { headers: authHeaders() });
+      setMessages((cur) => cur.filter((message) => String(message._id) !== String(chatId)));
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to delete chat");
+    } finally {
+      setDeletingChatId("");
+    }
+  };
+
+  const handleDeletePublicPlaylist = async () => {
+    if (!window.confirm("Delete this public playlist for everyone? This cannot be undone.")) return;
+    setDeletingPlaylist(true);
+    try {
+      await axios.delete(`${API_URL}/playlists/${id}`, { headers: authHeaders() });
+      navigate("/explore");
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to delete playlist");
+    } finally {
+      setDeletingPlaylist(false);
+    }
   };
 
   const emitChatMessage = ({ text = "", messageType = "text", mediaUrl = "" }) => {
@@ -605,6 +638,13 @@ const VideoPage = () => {
   );
 
   const isOwner = playlist.access?.isOwner;
+  const isMember = playlist.access?.isMember;
+  const isAdminModerator = playlist.access?.isAdminModerator;
+  const canTrackProgress = playlist.access?.canTrackProgress;
+  const canSendChat = playlist.access?.canSendChat;
+  const canRemoveMembers = playlist.access?.canRemoveMembers;
+  const canDeletePlaylist = playlist.access?.canDeletePlaylist;
+  const canDeleteChats = playlist.access?.canDeleteChats;
   const members = uniqueMembers;
   const currentIndex = playlist.videos?.findIndex((v) => v.videoId === selectedVideo?.videoId) ?? -1;
   const nextVideo = currentIndex >= 0 ? playlist.videos[currentIndex + 1] : null;
@@ -685,7 +725,7 @@ const VideoPage = () => {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {selectedVideo && (
+                  {selectedVideo && canTrackProgress && (
                     <button
                       disabled={isSelectedVideoCompletionPending}
                       onClick={() => toggleComplete(selectedVideo.videoId, selectedVideo.completed)}
@@ -709,24 +749,31 @@ const VideoPage = () => {
                 </div>
               </div>
 
-              {/* Progress */}
-              <div>
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-white/45 font-medium flex items-center gap-1.5"><IC.BarChart className="w-3.5 h-3.5" />Your progress</span>
-                  <span className="text-emerald-300 font-semibold">{progressPercent}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-400 to-lime-300 transition-all duration-500" style={{ width: `${progressPercent}%` }} />
-                </div>
-              </div>
+              {canTrackProgress ? (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-white/45 font-medium flex items-center gap-1.5"><IC.BarChart className="w-3.5 h-3.5" />Your progress</span>
+                      <span className="text-emerald-300 font-semibold">{progressPercent}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-lime-300 transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </div>
 
-              <StreakBadge
-                currentStreak={playlist.requesterProgress?.currentStreak || 0}
-                longestStreak={playlist.requesterProgress?.longestStreak || 0}
-                earnedBadges={playlist.requesterProgress?.earnedBadges || []}
-                todayMinutes={playlist.requesterProgress?.todayMinutes || 0}
-                timeZone={playlist.requesterProgress?.streakTimezone || "Asia/Kolkata"}
-              />
+                  <StreakBadge
+                    currentStreak={playlist.requesterProgress?.currentStreak || 0}
+                    longestStreak={playlist.requesterProgress?.longestStreak || 0}
+                    earnedBadges={playlist.requesterProgress?.earnedBadges || []}
+                    todayMinutes={playlist.requesterProgress?.todayMinutes || 0}
+                    timeZone={playlist.requesterProgress?.streakTimezone || "Asia/Kolkata"}
+                  />
+                </>
+              ) : (
+                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  Admin moderation mode is active for this public playlist. You can review chats, remove members, and delete the room without joining it.
+                </div>
+              )}
             </div>
           </div>
 
@@ -883,41 +930,49 @@ const VideoPage = () => {
                     </div>
                   </div>
 
-                  <textarea
-                    value={noteDraft}
-                    onChange={(e) => {
-                      setNoteDraft(e.target.value);
-                      if (noteFeedback) setNoteFeedback("");
-                    }}
-                    maxLength={5000}
-                    placeholder="Write the key idea, formula, timestamp, or summary for this video..."
-                    className="min-h-[220px] w-full resize-y rounded-[24px] border border-white/10 bg-[#070707] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/30"
-                  />
+                  {canTrackProgress ? (
+                    <>
+                      <textarea
+                        value={noteDraft}
+                        onChange={(e) => {
+                          setNoteDraft(e.target.value);
+                          if (noteFeedback) setNoteFeedback("");
+                        }}
+                        maxLength={5000}
+                        placeholder="Write the key idea, formula, timestamp, or summary for this video..."
+                        className="min-h-[220px] w-full resize-y rounded-[24px] border border-white/10 bg-[#070707] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                      />
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3 text-xs font-medium">
-                      <span className="text-white/35">{noteDraft.length}/5000 characters</span>
-                      {noteFeedback && <span className="text-emerald-300">{noteFeedback}</span>}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3 text-xs font-medium">
+                          <span className="text-white/35">{noteDraft.length}/5000 characters</span>
+                          {noteFeedback && <span className="text-emerald-300">{noteFeedback}</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleClearNote}
+                            disabled={noteSaving || (!selectedVideo.note && !normalizedNoteDraft)}
+                            className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveNote}
+                            disabled={noteSaving || !noteIsDirty}
+                            className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-4 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer active:scale-0.9"
+                          >
+                            {noteSaving ? "Saving..." : "Save note"}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/55">
+                      Private notes stay member-only. Admin moderation mode does not expose or save notes.
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleClearNote}
-                        disabled={noteSaving || (!selectedVideo.note && !normalizedNoteDraft)}
-                        className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.05] disabled:opacity-50 cursor-pointer active:scale-0.9"
-                      >
-                        Clear
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveNote}
-                        disabled={noteSaving || !noteIsDirty}
-                        className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-4 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer active:scale-0.9"
-                      >
-                        {noteSaving ? "Saving..." : "Save note"}
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-white/35 font-medium">Select a video to write a note.</p>
@@ -935,66 +990,83 @@ const VideoPage = () => {
                     key={msg._id || `${msg.createdAt}-${msg.message}`}
                     message={msg}
                     nameSuffix={<BadgeIcon earnedBadges={badgeLookup.get(getEntityId(msg.sender))} size={16} />}
+                    actions={canDeleteChats ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteChat(msg._id)}
+                        disabled={deletingChatId === String(msg._id)}
+                        className="inline-flex items-center gap-1 rounded-full border border-red-500/30 px-2 py-1 text-[10px] font-semibold text-red-200 transition-colors hover:bg-red-500/10 disabled:opacity-50 cursor-pointer active:scale-0.9"
+                      >
+                        <IC.Trash className="w-3 h-3" />
+                        {deletingChatId === String(msg._id) ? "Deleting..." : "Delete"}
+                      </button>
+                    ) : null}
                   />
                 ))}
                 <div ref={chatEndRef} />
               </div>
-              <form onSubmit={handleSendMessage} className="p-3 sm:p-4 border-t border-white/10 space-y-2.5">
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+              {canSendChat ? (
+                <form onSubmit={handleSendMessage} className="p-3 sm:p-4 border-t border-white/10 space-y-2.5">
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
 
-                  {/* Row 2 on mobile: Attach + Voice */}
-                  <div className="flex items-center gap-2 sm:contents">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingMedia}
-                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.05] text-xs sm:text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer active:scale-0.9"
-                    >
-                      <IC.Paperclip className="w-3.5 h-3.5" />
-                      <span className="sm:hidden">Attach</span>
-                      <span className="hidden sm:inline">{uploadingMedia ? "Uploading..." : "Attach"}</span>
-                    </button>
+                    {/* Row 2 on mobile: Attach + Voice */}
+                    <div className="flex items-center gap-2 sm:contents">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingMedia}
+                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.05] text-xs sm:text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer active:scale-0.9"
+                      >
+                        <IC.Paperclip className="w-3.5 h-3.5" />
+                        <span className="sm:hidden">Attach</span>
+                        <span className="hidden sm:inline">{uploadingMedia ? "Uploading..." : "Attach"}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs sm:text-sm font-medium transition-colors ${isRecording ? "bg-red-600 text-white" : "border border-white/10 bg-white/[0.05] hover:bg-white/10 cursor-pointer active:scale-0.9"
-                        }`}
-                    >
-                      <IC.Mic className="w-3.5 h-3.5" />
-                      <span>{isRecording ? "Stop" : "Voice"}</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs sm:text-sm font-medium transition-colors ${isRecording ? "bg-red-600 text-white" : "border border-white/10 bg-white/[0.05] hover:bg-white/10 cursor-pointer active:scale-0.9"
+                          }`}
+                      >
+                        <IC.Mic className="w-3.5 h-3.5" />
+                        <span>{isRecording ? "Stop" : "Voice"}</span>
+                      </button>
 
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => uploadAndSendMedia(e.target.files?.[0])}
-                    />
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => uploadAndSendMedia(e.target.files?.[0])}
+                      />
+                    </div>
+
+                    {/* Row 1 on mobile: Input + Send */}
+                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                      <input
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        placeholder="Send a message..."
+                        className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-sm font-medium"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!chatMessage.trim()}
+                        className="flex items-center gap-1.5 px-3 sm:px-5 py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shrink-0 cursor-pointer active:scale-0.9"
+                      >
+                        <IC.Send className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Send</span>
+                      </button>
+                    </div>
+
                   </div>
-
-                  {/* Row 1 on mobile: Input + Send */}
-                  <div className="flex flex-1 items-center gap-2 min-w-0">
-                    <input
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      placeholder="Send a message..."
-                      className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 rounded-2xl bg-black/25 border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-sm font-medium"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!chatMessage.trim()}
-                      className="flex items-center gap-1.5 px-3 sm:px-5 py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 font-semibold disabled:opacity-50 text-sm shrink-0 cursor-pointer active:scale-0.9"
-                    >
-                      <IC.Send className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Send</span>
-                    </button>
-                  </div>
-
+                  <p className="text-[10px] text-white/25 font-medium">Images and voice notes are sent into this room only.</p>
+                </form>
+              ) : (
+                <div className="border-t border-white/10 px-4 py-3 text-sm text-white/45">
+                  Chat posting is still limited to playlist members. Admin moderation mode lets you review and delete chats without joining the room.
                 </div>
-                <p className="text-[10px] text-white/25 font-medium">Images and voice notes are sent into this room only.</p>
-              </form>
+              )}
             </div>
           )}
 
@@ -1173,7 +1245,22 @@ const VideoPage = () => {
                   </div>
                 </div>
 
-                {!isOwner && (
+                {isAdminModerator && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 sm:p-5">
+                    <h3 className="font-semibold flex items-center gap-2 mb-1"><IC.Trash className="w-4 h-4 text-red-300" />Admin moderation</h3>
+                    <p className="text-xs text-red-100/75 mb-3 font-medium">As an admin, you can moderate chats, members, and this public playlist from here.</p>
+                    <button
+                      onClick={handleDeletePublicPlaylist}
+                      disabled={deletingPlaylist || !canDeletePlaylist}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-red-500/30 text-red-100 text-xs font-medium hover:bg-red-500/10 disabled:opacity-50 cursor-pointer active:scale-0.9"
+                    >
+                      <IC.Trash className="w-3.5 h-3.5" />
+                      {deletingPlaylist ? "Deleting..." : "Delete public playlist"}
+                    </button>
+                  </div>
+                )}
+
+                {isMember && !isOwner && (
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
                     <h3 className="font-semibold flex items-center gap-2 mb-1"><IC.LogOut className="w-4 h-4 text-red-400" />Leave playlist</h3>
                     <p className="text-xs text-white/40 mb-3 font-medium">You'll lose access but your progress stays.</p>
@@ -1219,7 +1306,7 @@ const VideoPage = () => {
                           <p className="text-[10px] text-white/30 font-medium truncate">{member.email}</p>
                         </div>
                       </div>
-                      {isOwner && (
+                      {canRemoveMembers && (
                         <button onClick={() => handleRemoveMember(member.id || member._id)} disabled={removingMemberId === (member.id || member._id)}
                           className="shrink-0 flex items-center gap-1 text-xs text-white/30 cursor-pointer active:scale-0.9 hover:text-red-300 font-medium disabled:opacity-50 transition-colors">
                           <IC.X className="w-3 h-3" />

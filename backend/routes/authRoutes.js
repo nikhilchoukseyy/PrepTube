@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { protect } from "../middleware/authMiddleware.js";
 import { serializeUser } from "../utils/userIdentity.js";
-import { forgotPassword, resetPassword, submitQuestion } from "../controllers/userController.js";
+import { forgotPassword, resetPassword, submitFeedback, submitQuestion } from "../controllers/userController.js";
 
 
 
@@ -51,6 +51,8 @@ router.get("/protected", protect, (req, res) => {
 router.post("/forgot-password", authLimiter, forgotPassword);
 
 router.post("/reset-password/:token", resetPassword);
+
+router.post("/feedback", submitFeedback);
 
 router.post("/question", submitQuestion);
 

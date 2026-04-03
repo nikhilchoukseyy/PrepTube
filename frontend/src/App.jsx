@@ -8,6 +8,7 @@ import Footer from "./components/Footer";
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const CoursesPage = lazy(() => import("./pages/CoursesPage"));
 const ExplorePage = lazy(() => import("./pages/ExplorePage"));
+const FAQsPage = lazy(() => import("./pages/FAQsPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
 const VideoPage = lazy(() => import("./pages/VideoPage"));
@@ -27,6 +28,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/explore" element={<ExplorePage />} />
+            <Route path="/faqs" element={<FAQsPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/success" element={<SuccessPage />} />
             <Route path="/join/:token" element={<JoinPage />} />

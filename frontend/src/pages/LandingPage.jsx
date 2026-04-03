@@ -1,9 +1,8 @@
 ﻿import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import axios from "axios";
 import Navbar from "../components/Navbar";
-import { API_URL, getStoredUser } from "../utils/auth";
+import { getStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { LIMITED_TIME_PRO_PROMO } from "../utils/promo";
 import { Volume2, VolumeX } from "lucide-react";
@@ -12,6 +11,7 @@ import pasteUrlImg from "../assets/paste_url.png";
 import chatImg from "../assets/chatImg.png";
 import progressImg from "../assets/progress.png";
 import ReviewCard from "../components/ReviewCard";
+import FeedbackPanel from "../components/FeedbackPanel";
 
 const demoVideoModules = import.meta.glob("../assets/*.{mp4,webm,ogg,mov,m4v}", {
   eager: true,
@@ -160,59 +160,8 @@ const reviews = [
   { username: "Ishaan V.", role: "DSA Grinder", review: "The accountability is real. Can't slack when your friends can see your 0% completion.", gradient: "from-yellow-500/20 to-amber-500/10" },
 ];
 
-const faqs = [
-  {
-    question: "What exactly is PrepTube?",
-    answer:
-      "PrepTube turns a YouTube playlist into a collaborative study room. Instead of sharing links in chat and learning in separate tabs, members can join the same room, track progress, discuss lessons live, and stay accountable together.",
-  },
-  {
-    question: "How do I import a playlist?",
-    answer:
-      "On the Courses page, paste any valid YouTube playlist URL. PrepTube extracts the YouTube playlist id, pulls the playlist metadata and video list from the YouTube Data API, calculates durations, and creates a room around that playlist.",
-  },
-  {
-    question: "Can I use PrepTube for free?",
-    answer:
-      "Yes. The free plan lets you import playlists, track progress and streaks, use live chat, and invite up to 5 collaborators to a room, which means 6 total people including the owner.",
-  },
-  {
-    question: "Are my notes visible to other members?",
-    answer:
-      "No. Video notes are private per user. Other room members can see the shared playlist, progress-related stats, and chat, but they cannot read your private notes for a video.",
-  },
-  {
-    question: "How are streaks calculated?",
-    answer:
-      "Streaks are tracked per user and per playlist. PrepTube logs active study time from the workspace, and a day counts toward the streak once you reach at least 30 minutes on that playlist for that date in the Asia/Kolkata timezone.",
-  },
-  {
-    question: "How do public playlists and Explore work?",
-    answer:
-      "The room owner can mark a playlist as public after selecting at least one topic. Public rooms appear in Explore and can be filtered by topic. Users still join the room before entering the full workspace.",
-  },
-  {
-    question: "What if I do not renew my premium after 1 month?",
-    answer:
-      "Your account falls back to the free plan when the premium period ends. Existing room members keep their access, but new joins will follow the free plan member limit until you renew premium again.",
-  },
-  {
-    question: "Do chat messages stay saved?",
-    answer:
-      "Yes. Text, image, and voice messages are stored so recent room chat can be loaded again when members reopen the workspace. Media uploads depend on Cloudinary being configured on the backend.",
-  },
-];
-
 const LandingPage = () => {
   const user = getStoredUser();
-  const [openFaqIndex, setOpenFaqIndex] = useState(0);
-  const [sendingQuestion, setSendingQuestion] = useState(false);
-  const [questionStatus, setQuestionStatus] = useState({ type: "", message: "" });
-  const [questionForm, setQuestionForm] = useState({
-    name: user?.name || user?.username || "",
-    email: user?.email || "",
-    question: "",
-  });
 
   const heroCtaLink = useMemo(
     () => (user ? "/courses" : "/login?redirect=/courses"),
@@ -250,44 +199,6 @@ const LandingPage = () => {
       window.removeEventListener("pageshow", handlePageShow);
     };
   }, []);
-
-  const handleQuestionChange = (field) => (event) => {
-    setQuestionStatus({ type: "", message: "" });
-    setQuestionForm((current) => ({
-      ...current,
-      [field]: event.target.value,
-    }));
-  };
-
-  const handleQuestionSubmit = async (event) => {
-    event.preventDefault();
-    setSendingQuestion(true);
-    setQuestionStatus({ type: "", message: "" });
-
-    try {
-      const response = await axios.post(`${API_URL}/auth/question`, {
-        name: questionForm.name,
-        email: questionForm.email,
-        question: questionForm.question,
-      });
-
-      setQuestionStatus({
-        type: "success",
-        message: response.data?.message || "Your question has been sent successfully.",
-      });
-      setQuestionForm((current) => ({
-        ...current,
-        question: "",
-      }));
-    } catch (error) {
-      setQuestionStatus({
-        type: "error",
-        message: error.response?.data?.message || "Unable to send your question right now.",
-      });
-    } finally {
-      setSendingQuestion(false);
-    }
-  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080808] text-white">
@@ -530,155 +441,66 @@ const LandingPage = () => {
 
         <section className="px-4 pb-24 sm:px-6 sm:pb-28">
           <div className="mx-auto max-w-6xl">
-            <div className="mb-8 max-w-2xl">
+            <div className="mb-8 max-w-3xl">
               <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-red-300/70">
-                <Icon.HelpCircle />
-                FAQ
+                <Icon.Mail />
+                Feedback
               </div>
               <h2 className="text-3xl font-black leading-tight sm:text-4xl">
-                Questions people ask before they start.
+                Help shape what PrepTube should feel like next.
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-white/55 sm:text-base">
-                These answers match how PrepTube works right now, including rooms, topics, streaks, notes, and premium access.
+                Share friction points, missing features, rough edges, or ideas you want to see in the product. Every response goes straight to the team.
               </p>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="space-y-3">
-                {faqs.map((faq, index) => {
-                  const isOpen = openFaqIndex === index;
-                  return (
-                    <motion.article
-                      key={faq.question}
-                      initial={{ opacity: 0, y: 14 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.25 }}
-                      transition={{ delay: index * 0.04 }}
-                      className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03]"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setOpenFaqIndex(isOpen ? -1 : index)}
-                        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
-                      >
-                        <span className="text-sm font-semibold leading-relaxed text-white sm:text-base">
-                          {faq.question}
-                        </span>
-                        <span
-                          className={`shrink-0 rounded-full border border-white/10 bg-white/[0.04] p-2 text-white/60 transition-transform ${isOpen ? "rotate-180" : ""
-                            }`}
-                        >
-                          <Icon.ChevronDown />
-                        </span>
-                      </button>
-                      {isOpen && (
-                        <div className="border-t border-white/8 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
-                          <p className="pt-4 text-sm leading-relaxed text-white/60">{faq.answer}</p>
-                        </div>
-                      )}
-                    </motion.article>
-                  );
-                })}
-              </div>
-
+            <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
               <motion.aside
                 initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.25 }}
-                className="rounded-[28px] border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-5 sm:p-6"
+                className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 sm:p-6"
               >
-                <div className="mb-5 flex items-start gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/12 text-red-300">
-                    <Icon.Mail />
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/12 text-amber-200">
+                    <Icon.MessageSquare />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold">Still have a question?</h3>
+                    <h3 className="text-lg font-bold">What feedback helps most</h3>
                     <p className="mt-1 text-sm leading-relaxed text-white/50">
-                      Send it directly from the landing page and it will go to the owner.
+                      Specific moments are the most useful: what you expected, what happened instead, and what would have made it better.
                     </p>
                   </div>
                 </div>
 
-                <form onSubmit={handleQuestionSubmit} className="space-y-3.5">
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={questionForm.name}
-                      onChange={handleQuestionChange("name")}
-                      placeholder="Your name"
-                      maxLength={80}
-                      className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/35"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={questionForm.email}
-                      onChange={handleQuestionChange("email")}
-                      placeholder="you@example.com"
-                      className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/35"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-white/35">
-                      Question
-                    </label>
-                    <textarea
-                      value={questionForm.question}
-                      onChange={handleQuestionChange("question")}
-                      placeholder="Ask about rooms, premium, notes, streaks, chat, or anything else about PrepTube..."
-                      maxLength={2000}
-                      rows={6}
-                      className="w-full resize-none rounded-[24px] border border-white/10 bg-black/25 px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/35"
-                    />
-                    <div className="mt-2 text-right text-[11px] font-medium text-white/25">
-                      {questionForm.question.length}/2000
+                <div className="mt-6 space-y-3">
+                  {[
+                    "Confusing flows while importing, joining, or navigating playlists",
+                    "Features you want in rooms, chat, streaks, or progress tracking",
+                    "Visual issues on mobile or desktop that make the app harder to use",
+                    "Any place where PrepTube feels slower, clunkier, or less clear than it should",
+                  ].map((item) => (
+                    <div key={item} className="flex gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="mt-0.5 text-emerald-300">
+                        <Icon.CheckCircle />
+                      </div>
+                      <p className="text-sm leading-relaxed text-white/60">{item}</p>
                     </div>
-                  </div>
+                  ))}
+                </div>
 
-                  {questionStatus.message && (
-                    <div
-                      className={`rounded-2xl border px-4 py-3 text-sm font-medium ${questionStatus.type === "success"
-                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-                        : "border-red-500/20 bg-red-500/10 text-red-200"
-                        }`}
-                    >
-                      {questionStatus.message}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={
-                      sendingQuestion ||
-                      !questionForm.name.trim() ||
-                      !questionForm.email.trim() ||
-                      !questionForm.question.trim()
-                    }
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-500/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {sendingQuestion ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        Sending question...
-                      </>
-                    ) : (
-                      <>
-                        <Icon.Send />
-                        Send question
-                      </>
-                    )}
-                  </button>
-                </form>
+                <div className="mt-6 rounded-2xl border border-red-500/15 bg-red-500/8 px-4 py-3 text-sm text-red-100/80">
+                  Need product answers instead of feedback? You can browse the new <Link to="/faqs" className="font-semibold text-white underline decoration-white/30 underline-offset-4">FAQs page</Link> from the navbar.
+                </div>
               </motion.aside>
+
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.25 }}
+              >
+                <FeedbackPanel />
+              </motion.div>
             </div>
           </div>
         </section>

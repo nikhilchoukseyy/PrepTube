@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import {
   createPlaylist,
+  deleteChatMessage,
   deletePlaylist,
   generateInviteToken,
   getChatMessage,
@@ -39,6 +40,7 @@ router.post("/join", protect, enforceMemberLimit, joinPlaylist);
 router.get("/:playlistId/details", protect, getPlaylistDetail);
 router.put("/:playlistId/videos/:videoId/note", protect, saveVideoNote);
 router.get("/:playlistId/chats", protect, getChatMessage);
+router.delete("/:playlistId/chats/:chatId", protect, deleteChatMessage);
 router.post("/:playlistId/invite", protect, generateInviteToken);
 router.post("/:playlistId/leave", protect, leavePlaylist);
 router.delete("/:playlistId/members/:userId", protect, removeMember);

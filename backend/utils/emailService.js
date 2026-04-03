@@ -91,3 +91,29 @@ export const sendOwnerQuestionEmail = async ({ name, email, question }) => {
 
   await transporter.sendMail(mailOptions);
 };
+
+export const sendOwnerFeedbackEmail = async ({ name, email, feedback }) => {
+  const ownerEmail = process.env.OWNER_EMAIL || process.env.EMAIL_USER;
+
+  if (!ownerEmail) {
+    throw new Error("Owner email is not configured");
+  }
+
+  const mailOptions = {
+    from: `"PrepTube" <${process.env.EMAIL_USER}>`,
+    to: ownerEmail,
+    replyTo: email,
+    subject: `New PrepTube feedback from ${name}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: auto; color: #111827;">
+        <h2 style="margin-bottom: 12px;">New feedback from the landing page</h2>
+        <p style="margin: 0 0 8px;"><strong>Name:</strong> ${name}</p>
+        <p style="margin: 0 0 8px;"><strong>Email:</strong> ${email}</p>
+        <p style="margin: 16px 0 8px;"><strong>Feedback:</strong></p>
+        <div style="padding: 16px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${feedback}</div>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};

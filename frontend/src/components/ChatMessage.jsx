@@ -1,4 +1,4 @@
-const ChatMessage = ({ message, nameSuffix = null }) => {
+const ChatMessage = ({ message, nameSuffix = null, actions = null }) => {
   const sender = message?.sender || {};
   const senderName = sender.username || sender.name || sender.email || "User";
   const avatar = sender.avatar;
@@ -14,13 +14,18 @@ const ChatMessage = ({ message, nameSuffix = null }) => {
       )}
       <div className="bg-gray-800 rounded-2xl rounded-tl-none px-4 py-3 max-w-[85%] space-y-2">
         <div>
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs text-gray-400 font-medium">{senderName}</p>
-            {nameSuffix}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-gray-400 font-medium">{senderName}</p>
+                {nameSuffix}
+              </div>
+              {message.createdAt && (
+                <p className="text-[11px] text-gray-500">{new Date(message.createdAt).toLocaleString("en-GB")}</p>
+              )}
+            </div>
+            {actions ? <div className="shrink-0">{actions}</div> : null}
           </div>
-          {message.createdAt && (
-            <p className="text-[11px] text-gray-500">{new Date(message.createdAt).toLocaleString()}</p>
-          )}
         </div>
 
         {message.messageType === "image" && message.mediaUrl ? (

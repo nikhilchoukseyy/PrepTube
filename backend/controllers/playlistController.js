@@ -5,10 +5,11 @@ import ChatMessage from "../models/ChatMessage.js";
 import Playlist from "../models/Playlist.js";
 import User from "../models/User.js";
 import { BADGE_TIERS, getNewlyEarnedBadges } from "../utils/badgeUtils.js";
-import { canAccessPlaylist, isPlaylistMember, isPlaylistOwner } from "../utils/playlistAccess.js";
+import { canAccessPlaylist, canModeratePublicPlaylist, canViewPlaylist, isPlaylistMember, isPlaylistOwner } from "../utils/playlistAccess.js";
 import { buildAvailablePlaylistTopics, normalizePlaylistTopics } from "../utils/playlistTopics.js";
 import { DEFAULT_TIMEZONE, getDateKeyInTimezone, serializeUser } from "../utils/userIdentity.js";
 import { trackEvent } from "../utils/analytics.js";
+import { getIO } from "../socket/index.js";
 
 dotenv.config();
 
@@ -365,13 +366,15 @@ async function fetchPlaylistWithMembers(playlistId) {
   return Playlist.findOne({ playlistId }).populate("owner members progress.user videoNotes.user", "name email username avatar isPremium plan premiumExpiresAt");
 }
 
-async function assertPlaylistAccess(playlistId, userId) {
+async function assertPlaylistAccess(playlistId, actor, options = {}) {
+  const { allowAdminPublicAccess = false } = options;
   const playlist = await fetchPlaylistWithMembers(playlistId);
   if (!playlist) {
     return { error: { status: 404, body: { message: "Playlist not found" } } };
   }
 
-  if (!canAccessPlaylist(playlist, userId)) {
+  const hasAccess = allowAdminPublicAccess ? canViewPlaylist(playlist, actor) : canAccessPlaylist(playlist, actor);
+  if (!hasAccess) {
     return { error: { status: 403, body: { message: "You no longer have access to this playlist" } } };
   }
 
@@ -435,17 +438,16 @@ export const createPlaylist = async (req, res) => {
       return res.status(400).json({ message: "Invalid YouTube playlist URL" });
     }
 
-    const existingPlaylist = await Playlist.findOne({ playlistId });
-    if (existingPlaylist) {
-      if (String(existingPlaylist.owner) === String(userId) || existingPlaylist.members.some((member) => String(member) === String(userId))) {
-        return res.status(200).json({
-          message: "Playlist already exists in your library",
-          playlist: existingPlaylist,
-        });
-      }
+    // Check if the current user has already imported this playlist
+    const userPlaylistWithSameId = await Playlist.findOne({
+      playlistId,
+      $or: [{ owner: userId }, { members: userId }],
+    });
 
-      return res.status(409).json({
-        message: "This YouTube playlist has already been imported into PrepTube. Ask the owner for access or use Explore if it is public.",
+    if (userPlaylistWithSameId) {
+      return res.status(200).json({
+        message: "Playlist already exists in your library",
+        playlist: userPlaylistWithSameId,
       });
     }
 
@@ -639,13 +641,16 @@ export const markVideoCompleted = async (req, res) => {
 export const getPlaylistDetail = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const { playlist, error } = await assertPlaylistAccess(playlistId, req.user._id);
+    const { playlist, error } = await assertPlaylistAccess(playlistId, req.user, { allowAdminPublicAccess: true });
     if (error) {
       return res.status(error.status).json(error.body);
     }
 
     const { totalSeconds, totalHours, userStats } = computePlaylistStats(playlist);
     const requesterId = String(req.user._id);
+    const isOwner = isPlaylistOwner(playlist, req.user);
+    const isMember = isPlaylistMember(playlist, req.user);
+    const isAdminModerator = canModeratePublicPlaylist(playlist, req.user);
     const requesterProgress = playlist.progress.find((entry) => String(entry.user?._id || entry.user) === requesterId);
     const progressByUserId = new Map(
       (playlist.progress || []).map((entry) => [String(entry.user?._id || entry.user), entry])
@@ -688,12 +693,18 @@ export const getPlaylistDetail = async (req, res) => {
         videos,
         isPublic: playlist.isPublic,
         topics: normalizePlaylistTopics(playlist.topics || []),
-        inviteToken: isPlaylistOwner(playlist, req.user._id) ? playlist.inviteToken : null,
+        inviteToken: isOwner ? playlist.inviteToken : null,
         totals: { totalSeconds, totalHours },
         userStats,
         access: {
-          isOwner: isPlaylistOwner(playlist, req.user._id),
-          isMember: isPlaylistMember(playlist, req.user._id),
+          isOwner,
+          isMember,
+          isAdminModerator,
+          canTrackProgress: isOwner || isMember,
+          canSendChat: isOwner || isMember,
+          canRemoveMembers: isOwner || isAdminModerator,
+          canDeletePlaylist: isOwner || isAdminModerator,
+          canDeleteChats: isAdminModerator,
         },
         requesterProgress: {
           completedVideos: requesterProgress?.completedVideos || [],
@@ -916,14 +927,26 @@ export const leavePlaylist = async (req, res) => {
 export const removeMember = async (req, res) => {
   try {
     const { playlistId, userId } = req.params;
-    const playlist = await Playlist.findOne({ playlistId }).select("playlistId owner members");
+    const playlist = await Playlist.findOne({ playlistId }).select("playlistId owner members isPublic");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
 
-    if (!isPlaylistOwner(playlist, req.user._id)) {
-      return res.status(403).json({ message: "Only the owner can remove members" });
+    const isOwner = isPlaylistOwner(playlist, req.user);
+    const isAdminModerator = canModeratePublicPlaylist(playlist, req.user);
+
+    if (!isOwner && !isAdminModerator) {
+      return res.status(403).json({ message: "Only the owner or an admin can remove members from a public playlist" });
+    }
+
+    if (isPlaylistOwner(playlist, userId)) {
+      return res.status(400).json({ message: "The playlist owner cannot be removed" });
+    }
+
+    const wasMember = playlist.members.some((member) => String(member) === String(userId));
+    if (!wasMember) {
+      return res.status(404).json({ message: "Member not found in this playlist" });
     }
 
     playlist.members = playlist.members.filter((member) => String(member) !== String(userId));
@@ -1078,14 +1101,14 @@ export const uploadChatMedia = async (req, res) => {
 export const deletePlaylist = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const playlist = await Playlist.findOne({ playlistId }).select("_id owner");
+    const playlist = await Playlist.findOne({ playlistId }).select("_id owner isPublic");
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
 
-    if (!isPlaylistOwner(playlist, req.user._id)) {
-      return res.status(403).json({ message: "Only the owner can delete this playlist" });
+    if (!isPlaylistOwner(playlist, req.user) && !canModeratePublicPlaylist(playlist, req.user)) {
+      return res.status(403).json({ message: "Only the owner or an admin can delete this public playlist" });
     }
 
     await ChatMessage.deleteMany({ playlist: playlist._id });
@@ -1098,10 +1121,41 @@ export const deletePlaylist = async (req, res) => {
   }
 };
 
+export const deleteChatMessage = async (req, res) => {
+  try {
+    const { playlistId, chatId } = req.params;
+    const playlist = await Playlist.findOne({ playlistId }).select("_id playlistId isPublic");
+
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+
+    if (!canModeratePublicPlaylist(playlist, req.user)) {
+      return res.status(403).json({ message: "Only admins can delete chats from public playlists" });
+    }
+
+    const chat = await ChatMessage.findOne({ _id: chatId, playlist: playlist._id }).select("_id");
+    if (!chat) {
+      return res.status(404).json({ message: "Chat message not found" });
+    }
+
+    await ChatMessage.deleteOne({ _id: chat._id });
+    getIO()?.to(playlist.playlistId).emit("chatDeleted", { chatId: String(chat._id) });
+
+    return res.status(200).json({
+      message: "Chat deleted successfully",
+      chatId: String(chat._id),
+    });
+  } catch (error) {
+    console.error("deleteChatMessage error:", error.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const getChatMessage = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const { playlist, error } = await assertPlaylistAccess(playlistId, req.user._id);
+    const { playlist, error } = await assertPlaylistAccess(playlistId, req.user, { allowAdminPublicAccess: true });
     if (error) {
       return res.status(error.status).json(error.body);
     }

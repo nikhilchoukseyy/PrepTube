@@ -4,7 +4,7 @@ import Playlist from "../models/Playlist.js";
 import ChatMessage from "../models/ChatMessage.js";
 import dotenv from "dotenv";
 import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, resolveAvatarSource, serializeUser } from "../utils/userIdentity.js";
-import { sendWelcomeEmail, sendPasswordResetEmail, sendOwnerQuestionEmail } from "../utils/emailService.js";
+import { sendWelcomeEmail, sendPasswordResetEmail, sendOwnerFeedbackEmail, sendOwnerQuestionEmail } from "../utils/emailService.js";
 import { trackEvent } from "../utils/analytics.js";
 import crypto from "crypto";
 
@@ -182,6 +182,43 @@ export const submitQuestion = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Unable to send your question right now" });
+  }
+};
+
+export const submitFeedback = async (req, res) => {
+  const name = req.body.name?.trim();
+  const email = req.body.email?.trim().toLowerCase();
+  const feedback = req.body.feedback?.trim();
+
+  try {
+    if (!name || !email || !feedback) {
+      return res.status(400).json({ message: "Name, email, and feedback are required" });
+    }
+
+    if (name.length > 80) {
+      return res.status(400).json({ message: "Name must be 80 characters or fewer" });
+    }
+
+    if (feedback.length < 10) {
+      return res.status(400).json({ message: "Feedback should be at least 10 characters long" });
+    }
+
+    if (feedback.length > 2000) {
+      return res.status(400).json({ message: "Feedback must be 2000 characters or fewer" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    await sendOwnerFeedbackEmail({ name, email, feedback });
+
+    return res.status(200).json({
+      message: "Your feedback has been sent. Thank you for helping improve PrepTube.",
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Unable to send your feedback right now" });
   }
 };
 

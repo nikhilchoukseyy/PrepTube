@@ -3,9 +3,15 @@ import jwt from "jsonwebtoken";
 import ChatMessage from "../models/ChatMessage.js";
 import Playlist from "../models/Playlist.js";
 import User from "../models/User.js";
-import { canAccessPlaylist } from "../utils/playlistAccess.js";
+import { canAccessPlaylist, canViewPlaylist } from "../utils/playlistAccess.js";
 import { buildAvatarUrl, serializeUser } from "../utils/userIdentity.js";
 import { trackEvent } from "../utils/analytics.js";
+
+let ioInstance = null;
+
+export function getIO() {
+  return ioInstance;
+}
 
 function formatSocketUser(user) {
   const serialized = serializeUser(user);
@@ -17,6 +23,7 @@ function formatSocketUser(user) {
     username: serialized.username,
     avatar: serialized.avatar || buildAvatarUrl(serialized.username || serialized.name || serialized.email),
     plan: serialized.plan,
+    role: serialized.role,
   };
 }
 
@@ -32,6 +39,7 @@ export default function setupSocket(server) {
       credentials: true,
     },
   });
+  ioInstance = io;
 
   io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
@@ -39,7 +47,7 @@ export default function setupSocket(server) {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select("name email username avatar isPremium plan premiumExpiresAt");
+      const user = await User.findById(decoded.id).select("name email username avatar isPremium plan premiumExpiresAt role");
       if (!user) {
         return next(new Error("Authentication error"));
       }
@@ -53,7 +61,7 @@ export default function setupSocket(server) {
   io.on("connection", (socket) => {
     socket.on("joinRoom", async ({ playlistId }) => {
       const playlist = await Playlist.findOne({ playlistId }).populate("owner members");
-      if (!playlist || !canAccessPlaylist(playlist, socket.user.id)) {
+      if (!playlist || !canViewPlaylist(playlist, socket.user)) {
         return socket.emit("error", { message: "You do not have access to this playlist" });
       }
 
@@ -67,7 +75,7 @@ export default function setupSocket(server) {
           return socket.emit("error", { message: "Playlist not found" });
         }
 
-        if (!canAccessPlaylist(playlist, socket.user.id)) {
+        if (!canAccessPlaylist(playlist, socket.user)) {
           return socket.emit("error", { message: "You do not have access to this playlist" });
         }
 
