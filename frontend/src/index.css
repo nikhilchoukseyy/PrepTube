@@ -35,3 +35,13 @@
 .animate-scroll-right {
   animation: scrollRight 30s linear infinite;
 }
+.pause-on-hover:hover {
+  animation-play-state: paused;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

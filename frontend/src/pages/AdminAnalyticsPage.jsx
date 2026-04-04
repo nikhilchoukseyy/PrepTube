@@ -15,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import AdminReviewsManager from "../components/AdminReviewsManager";
 import Navbar from "../components/Navbar";
 import { API_URL, authHeaders, getStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
@@ -487,6 +488,8 @@ const AdminAnalyticsPage = () => {
             </section>
           </>
         )}
+
+        <AdminReviewsManager />
       </main>
     </div>
   );

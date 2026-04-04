@@ -1,8 +1,9 @@
 ﻿import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import { motion } from "motion/react";
 import Navbar from "../components/Navbar";
-import { getStoredUser } from "../utils/auth";
+import { API_URL, getStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { LIMITED_TIME_PRO_PROMO } from "../utils/promo";
 import { Volume2, VolumeX } from "lucide-react";
@@ -145,21 +146,6 @@ const features = [
   },
 ];
 
-const reviews = [
-  { username: "Arjun S.", role: "CS Student", review: "We finally finished a 120-video DSA course. The leaderboard made everyone competitive in the best way.", gradient: "from-red-500/20 to-orange-500/10" },
-  { username: "Priya M.", role: "Study Group Lead", review: "PrepTube feels like a lightweight course room instead of a lonely playlist tab. Game changer.", gradient: "from-violet-500/20 to-purple-500/10" },
-  { username: "Rahul K.", role: "Self Learner", review: "The streak feature is addictive. I haven't missed a study day in 3 weeks.", gradient: "from-emerald-500/20 to-teal-500/10" },
-  { username: "Sneha R.", role: "Engineering Student", review: "Voice messages in the chat while watching? That's actually genius for quick doubt solving.", gradient: "from-amber-500/20 to-yellow-500/10" },
-  { username: "Dev P.", role: "Bootcamp Student", review: "My friends kept saying they watched the videos. PrepTube showed the truth 😂", gradient: "from-pink-500/20 to-rose-500/10" },
-  { username: "Ananya T.", role: "GATE Aspirant", review: "Imported 3 playlists in under a minute. The UI is clean and nothing feels bloated.", gradient: "from-cyan-500/20 to-sky-500/10" },
-  { username: "Vikram N.", role: "Placement Prep", review: "Having a study room with real-time chat next to the video is exactly what was missing.", gradient: "from-lime-500/20 to-green-500/10" },
-  { username: "Meera J.", role: "Online Learner", review: "Finally stopped losing my place in long playlists. Progress tracking is so satisfying.", gradient: "from-orange-500/20 to-red-500/10" },
-  { username: "Karan B.", role: "College Group", review: "We use it for our entire semester prep. Sharing invite links is super smooth.", gradient: "from-indigo-500/20 to-blue-500/10" },
-  { username: "Tanvi S.", role: "Competitive Coder", review: "The leaderboard hits different when you're ranked #1 in your study group 👑", gradient: "from-fuchsia-500/20 to-pink-500/10" },
-  { username: "Rohan D.", role: "YouTube Learner", review: "I used to have 40 tabs open. Now I have PrepTube open. That's it.", gradient: "from-teal-500/20 to-emerald-500/10" },
-  { username: "Ishaan V.", role: "DSA Grinder", review: "The accountability is real. Can't slack when your friends can see your 0% completion.", gradient: "from-yellow-500/20 to-amber-500/10" },
-];
-
 const LandingPage = () => {
   const user = getStoredUser();
 
@@ -169,6 +155,11 @@ const LandingPage = () => {
   );
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef(null);
+  const [reviews, setReviews] = useState([]);
+  const scrollingReviews = useMemo(
+    () => (reviews.length > 1 ? [...reviews, ...reviews] : reviews),
+    [reviews]
+  );
 
   useEffect(() => {
     setPageMeta({
@@ -197,6 +188,29 @@ const LandingPage = () => {
 
     return () => {
       window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadReviews = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/reviews`);
+        if (active) {
+          setReviews(Array.isArray(response.data?.reviews) ? response.data.reviews : []);
+        }
+      } catch {
+        if (active) {
+          setReviews([]);
+        }
+      }
+    };
+
+    loadReviews();
+
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -409,35 +423,46 @@ const LandingPage = () => {
           </div>
         </section>
 
-        <section className="px-4 pb-20 sm:px-6 sm:pb-24 overflow-hidden">
-  <div className="mx-auto max-w-6xl mb-8 text-center">
-    <div className="mb-3 flex items-center justify-center gap-2">
-      <Icon.MessageSquare />
-      <p className="text-xs uppercase tracking-[0.18em] text-white/35">What people say</p>
-    </div>
-    <h2 className="text-2xl font-black leading-tight sm:text-3xl md:text-4xl">
-      Built for when &quot;I&apos;ll watch it later&quot; stops working.
-    </h2>
-  </div>
+        <section className="overflow-hidden px-4 pb-20 sm:px-6 sm:pb-24">
+          <div className="mx-auto mb-8 max-w-6xl text-center">
+            <div className="mb-3 flex items-center justify-center gap-2">
+              <Icon.MessageSquare />
+              <p className="text-xs uppercase tracking-[0.18em] text-white/35">Real learner reviews</p>
+            </div>
+            <h2 className="text-2xl font-black leading-tight sm:text-3xl md:text-4xl">
+              Built for when &quot;I&apos;ll watch it later&quot; stops working.
+            </h2>
+          </div>
 
-  {/* Row 1 — left to right */}
-  <div className="relative mb-4">
-    <div className="flex gap-4 animate-scroll-left w-max">
-      {[...reviews.slice(0, 6), ...reviews.slice(0, 6)].map((r, i) => (
-        <ReviewCard key={i} r={r} />
-      ))}
-    </div>
-  </div>
+          {reviews.length > 0 ? (
+            <div className="relative">
+              <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:hidden">
+                {reviews.map((review, index) => (
+                  <ReviewCard
+                    key={`${review._id || review.reviewerName}-mobile-${index}`}
+                    r={review}
+                    className="snap-center"
+                  />
+                ))}
+              </div>
 
-  {/* Row 2 — right to left */}
-  <div className="relative">
-    <div className="flex gap-4 animate-scroll-right w-max">
-      {[...reviews.slice(6), ...reviews.slice(6)].map((r, i) => (
-        <ReviewCard key={i} r={r} />
-      ))}
-    </div>
-  </div>
-</section>
+              <div className="hidden sm:block">
+                <div className={`flex gap-4 ${reviews.length > 1 ? "animate-scroll-left pause-on-hover w-max" : "justify-center"}`}>
+                  {scrollingReviews.map((review, index) => (
+                    <ReviewCard key={`${review._id || review.reviewerName}-${index}`} r={review} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto max-w-3xl rounded-[32px] border border-white/10 bg-white/[0.03] px-6 py-10 text-center">
+              <p className="text-lg font-bold text-white">Fresh reviews will appear here.</p>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">
+                The landing page now shows reviews added by the admin team instead of placeholder testimonials.
+              </p>
+            </div>
+          )}
+        </section>
 
         <section className="px-4 pb-24 sm:px-6 sm:pb-28">
           <div className="mx-auto max-w-6xl">

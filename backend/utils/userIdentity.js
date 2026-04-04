@@ -13,7 +13,7 @@ const GOOGLE_AVATAR_HOSTS = [
   "googleapis.com",
 ];
 const DATA_IMAGE_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
-const MAX_AVATAR_LENGTH = 1_500_000;
+const MAX_IMAGE_INPUT_LENGTH = 1_500_000;
 
 function slugify(value = "") {
   return value
@@ -54,7 +54,7 @@ export function resolveAvatarSource(user = {}) {
   return user?.avatar ? "custom" : "generated";
 }
 
-export function normalizeAvatarInput(value) {
+export function normalizeImageInput(value) {
   if (typeof value !== "string") return null;
 
   const trimmedValue = value.trim();
@@ -67,11 +67,15 @@ export function normalizeAvatarInput(value) {
     return null;
   }
 
-  if (trimmedValue.length > MAX_AVATAR_LENGTH) {
+  if (trimmedValue.length > MAX_IMAGE_INPUT_LENGTH) {
     return null;
   }
 
   return trimmedValue;
+}
+
+export function normalizeAvatarInput(value) {
+  return normalizeImageInput(value);
 }
 
 export function buildUsernameBase({ username, name, email }) {

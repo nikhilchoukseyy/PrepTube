@@ -33,6 +33,9 @@ const Navbar = () => {
     { label: "FAQs", to: "/faqs" },
     { label: "Pricing", to: "/pricing" },
   ];
+  const navLinks = user?.role === "admin"
+    ? [...links, { label: "Admin", to: "/admin/analytics" }]
+    : links;
 
   // Close menu on route change
   useEffect(() => {
@@ -63,7 +66,7 @@ const Navbar = () => {
   return (
     <>
       <nav
-        className={`sticky top-0 z-50 border-b border-white/8 bg-black/60 backdrop-blur-xl transition-shadow duration-300 ${
+        className={`sticky  top-0 z-50 border-b border-white/8 bg-black/60 backdrop-blur-xl transition-shadow duration-300 ${
           scrolled ? "shadow-[0_4px_32px_rgba(0,0,0,0.5)]" : ""
         }`}
       >
@@ -79,7 +82,7 @@ const Navbar = () => {
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-1 text-sm">
-            {links.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
@@ -191,7 +194,7 @@ const Navbar = () => {
           <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 px-3 mb-1">
             Navigate
           </p>
-          {links.map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}

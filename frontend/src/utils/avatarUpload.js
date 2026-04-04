@@ -14,7 +14,7 @@ const loadImage = (src) =>
     image.src = src;
   });
 
-export async function prepareAvatarUpload(file) {
+export async function prepareImageUpload(file) {
   if (!file) return "";
   if (!file.type.startsWith("image/")) {
     throw new Error("Please choose an image file");
@@ -40,4 +40,8 @@ export async function prepareAvatarUpload(file) {
   }
 
   return canvas.toDataURL("image/jpeg", 0.82);
+}
+
+export async function prepareAvatarUpload(file) {
+  return prepareImageUpload(file);
 }
