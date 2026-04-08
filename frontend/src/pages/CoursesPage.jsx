@@ -286,9 +286,9 @@ const CoursesPage = () => {
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
               {playlists.map((playlist) => {
                 const isOwner = String(playlist.owner?.id || playlist.owner?._id || playlist.owner) === String(currentUser?.id);
-                const completed = playlist.videos?.filter((v) => v.completed).length || 0;
+                const completed = playlist.requesterProgress?.completedCount ?? playlist.videos?.filter((v) => v.completed).length ?? 0;
                 const total = playlist.videos?.length || 0;
-                const percent = total ? Math.round((completed / total) * 100) : 0;
+                const percent = playlist.requesterProgress?.completionPercent ?? (total ? Math.round((completed / total) * 100) : 0);
 
                 return (
                   <article

@@ -559,19 +559,43 @@ export const getUserPlaylist = async (req, res) => {
       .populate("owner members", "name email username avatar isPremium plan premiumExpiresAt")
       .sort({ updatedAt: -1 }).lean();
 
-    const normalized = playlists.map((playlist) => ({
-      _id: playlist._id,
-      playlistId: playlist.playlistId,
-      title: playlist.title,
-      owner: formatMember(playlist.owner),
-      members: (playlist.members || []).map(formatMember),
-      isPublic: playlist.isPublic,
-      topics: normalizePlaylistTopics(playlist.topics || []),
-      inviteToken: playlist.inviteToken,
-      videos: playlist.videos,
-      createdAt: playlist.createdAt,
-      updatedAt: playlist.updatedAt,
-    }));
+    const normalized = playlists.map((playlist) => {
+      const { normalizedProgress } = normalizeProgressEntries(playlist.progress || []);
+      const requesterProgress = normalizedProgress.find((entry) => String(entry.user?._id || entry.user) === String(userId));
+      const completedSet = new Set(requesterProgress?.completedVideos || []);
+      const totalVideos = playlist.videos?.length || 0;
+      const completedCount = completedSet.size;
+      const completionPercent = totalVideos ? Math.round((completedCount / totalVideos) * 100) : 0;
+      const todayKey = getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE);
+      const todayMinutes = requesterProgress?.dailyMinutes?.find((entry) => entry.date === todayKey)?.minutes || 0;
+
+      return {
+        _id: playlist._id,
+        playlistId: playlist.playlistId,
+        title: playlist.title,
+        owner: formatMember(playlist.owner),
+        members: (playlist.members || []).map(formatMember),
+        isPublic: playlist.isPublic,
+        topics: normalizePlaylistTopics(playlist.topics || []),
+        inviteToken: playlist.inviteToken,
+        videos: (playlist.videos || []).map((video) => ({
+          ...video,
+          completed: completedSet.has(video.videoId),
+        })),
+        createdAt: playlist.createdAt,
+        updatedAt: playlist.updatedAt,
+        requesterProgress: {
+          completedVideos: requesterProgress?.completedVideos || [],
+          completedCount,
+          completionPercent,
+          currentStreak: requesterProgress?.currentStreak || 0,
+          longestStreak: requesterProgress?.longestStreak || 0,
+          earnedBadges: requesterProgress?.earnedBadges || [],
+          todayMinutes: +Number(todayMinutes || 0).toFixed(2),
+          streakTimezone: DEFAULT_TIMEZONE,
+        },
+      };
+    });
 
     return res.status(200).json({ playlists: normalized });
   } catch (error) {
