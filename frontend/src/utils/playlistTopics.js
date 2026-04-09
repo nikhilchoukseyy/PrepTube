@@ -29,6 +29,7 @@ export const DEFAULT_PLAYLIST_TOPICS = [
   "History",
   "Geography",
   "Commerce",
+  "DSA",
 ];
 
 export const MAX_PLAYLIST_TOPICS = 12;
