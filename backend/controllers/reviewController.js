@@ -1,4 +1,5 @@
 import Review from "../models/Review.js";
+import { uploadBase64Media } from "../utils/mediaUpload.js";
 import { normalizeImageInput } from "../utils/userIdentity.js";
 
 const HEX_COLOR_REGEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -34,6 +35,23 @@ function serializeReview(review = {}) {
     updatedAt: review.updatedAt || null,
   };
 }
+
+export const uploadReviewImage = async (req, res) => {
+  try {
+    const reviewImageUrl = await uploadBase64Media(req.body?.fileData, {
+      folder: "preptube/reviews",
+      resourceType: "image",
+    });
+
+    return res.json({
+      message: "Review image uploaded successfully",
+      url: reviewImageUrl,
+    });
+  } catch (error) {
+    console.error("uploadReviewImage error:", error.message);
+    return res.status(error.status || 500).json(error.body || { message: "Unable to upload review image right now" });
+  }
+};
 
 export const getPublicReviews = async (req, res) => {
   try {

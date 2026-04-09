@@ -4,6 +4,7 @@ import { API_URL, authHeaders } from "../utils/auth";
 import { prepareImageUpload } from "../utils/avatarUpload";
 import { DEFAULT_REVIEW_COLOR, REVIEW_COLOR_OPTIONS, normalizeReviewColor } from "../utils/reviews";
 import { IC } from "../pages/Icons";
+import AppImage from "./AppImage";
 import ReviewCard from "./ReviewCard";
 
 const INITIAL_FORM = {
@@ -256,9 +257,12 @@ const AdminReviewsManager = () => {
             <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 {reviewForm.reviewImage ? (
-                  <img
+                  <AppImage
                     src={reviewForm.reviewImage}
                     alt="Review preview"
+                    width={80}
+                    height={80}
+                    loading="eager"
                     className="h-20 w-20 rounded-3xl object-cover border border-white/10"
                   />
                 ) : (

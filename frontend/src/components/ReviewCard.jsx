@@ -1,4 +1,5 @@
 import { IC } from "../pages/Icons";
+import AppImage from "./AppImage";
 import { getReviewTheme } from "../utils/reviews";
 
 const ReviewCard = ({ r, className = "" }) => {
@@ -65,11 +66,16 @@ const ReviewCard = ({ r, className = "" }) => {
             className="flex items-center justify-center overflow-hidden rounded-[20px] p-2.5 sm:rounded-[24px] sm:p-3"
             style={{ backgroundColor: theme.quoteBackground, boxShadow: `0 0 0 1px ${theme.imageRing}` }}
           >
-            <img
-              src={reviewImage}
-              alt={`${reviewerName} review screenshot`}
-              className="block h-auto max-h-[280px] w-auto max-w-full rounded-[16px] object-contain sm:max-h-[420px] sm:rounded-[18px]"
-            />
+            <div className="w-full max-w-[420px] overflow-hidden rounded-[16px] bg-black/10 aspect-[4/3] sm:rounded-[18px]">
+              <AppImage
+                src={reviewImage}
+                alt={`${reviewerName} review screenshot`}
+                width={800}
+                height={600}
+                sizes="(min-width: 640px) 320px, 78vw"
+                className="block h-full w-full object-contain"
+              />
+            </div>
           </div>
         ) : (
           <div

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import io from "socket.io-client";
 import posthog from "posthog-js";
+import AppImage from "../components/AppImage";
 import Navbar from "../components/Navbar";
 import ChatMessage from "../components/ChatMessage";
 import StreakBadge, { BadgeIcon } from "../components/StreakBadge";
@@ -21,7 +22,17 @@ const ThumbnailImage = ({ videoId, fallbackSrc, alt, className }) => {
   const [srcIndex, setSrcIndex] = useState(0);
   useEffect(() => { setSrcIndex(0); }, [videoId, fallbackSrc]);
   if (!sources.length) return null;
-  return <img src={sources[srcIndex]} alt={alt} className={className} onError={() => setSrcIndex((i) => Math.min(i + 1, sources.length - 1))} />;
+  return (
+    <AppImage
+      src={sources[srcIndex]}
+      alt={alt}
+      width={1280}
+      height={720}
+      sizes="(min-width: 1280px) 20rem, 100vw"
+      className={className}
+      onError={() => setSrcIndex((i) => Math.min(i + 1, sources.length - 1))}
+    />
+  );
 };
 
 const readFileAsDataUrl = (file) =>
@@ -1078,7 +1089,13 @@ const VideoPage = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       {stat.user?.avatar ? (
-                        <img src={stat.user.avatar} alt={stat.user.username} className="w-9 h-9 rounded-full object-cover border border-white/10" />
+                        <AppImage
+                          src={stat.user.avatar}
+                          alt={stat.user.username}
+                          width={36}
+                          height={36}
+                          className="w-9 h-9 rounded-full object-cover border border-white/10"
+                        />
                       ) : (
                         <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
                           <IC.User className="w-4 h-4 text-white/30" />
@@ -1284,7 +1301,13 @@ const VideoPage = () => {
                   {/* Owner */}
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                     {playlist.owner?.avatar ? (
-                      <img src={playlist.owner.avatar} alt={playlist.owner.username} className="w-8 h-8 rounded-full object-cover" />
+                      <AppImage
+                        src={playlist.owner.avatar}
+                        alt={playlist.owner.username}
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
                     ) : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><IC.User className="w-4 h-4 text-white/30" /></div>}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -1297,7 +1320,15 @@ const VideoPage = () => {
                   {members.map((member) => (
                     <div key={member.id || member._id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {member.avatar ? <img src={member.avatar} alt={member.username} className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><IC.User className="w-4 h-4 text-white/30" /></div>}
+                        {member.avatar ? (
+                          <AppImage
+                            src={member.avatar}
+                            alt={member.username}
+                            width={32}
+                            height={32}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><IC.User className="w-4 h-4 text-white/30" /></div>}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <p className="font-medium text-sm truncate">@{member.username || member.name}</p>

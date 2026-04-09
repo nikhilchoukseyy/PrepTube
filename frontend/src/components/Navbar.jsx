@@ -1,6 +1,7 @@
 ﻿import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import { clearStoredAuth, getStoredUser, getToken } from "../utils/auth";
+import AppImage from "./AppImage";
 import preptubeLogo from "/preptube_logo.png";
 
 const MenuIcon = () => (
@@ -77,7 +78,14 @@ const Navbar = () => {
             {/* <span className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
               PrepTube
             </span> */}
-            <img src={preptubeLogo} alt="PrepTube Logo" className="w-12 h-12 bg-transparent" />
+            <AppImage
+              src={preptubeLogo}
+              alt="PrepTube Logo"
+              width={500}
+              height={500}
+              loading="eager"
+              className="w-12 h-12 bg-transparent"
+            />
           </Link>
 
           {/* Desktop Nav Links */}
@@ -107,9 +115,12 @@ const Navbar = () => {
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
                 >
                   {user?.avatar ? (
-                    <img
+                    <AppImage
                       src={user.avatar}
                       alt={user.username || user.name || "Profile"}
+                      width={28}
+                      height={28}
+                      loading="eager"
                       className="w-7 h-7 rounded-full object-cover ring-1 ring-white/20"
                     />
                   ) : (
@@ -151,9 +162,12 @@ const Navbar = () => {
             {isLoggedIn && (
               <Link to="/profile" className="shrink-0">
                 {user?.avatar ? (
-                  <img
+                  <AppImage
                     src={user.avatar}
                     alt="Profile"
+                    width={32}
+                    height={32}
+                    loading="eager"
                     className="w-8 h-8 rounded-full object-cover ring-1 ring-white/20"
                   />
                 ) : (
@@ -216,9 +230,12 @@ const Navbar = () => {
             <>
               <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.04] border border-white/8 mb-1">
                 {user?.avatar ? (
-                  <img
+                  <AppImage
                     src={user.avatar}
                     alt="Profile"
+                    width={36}
+                    height={36}
+                    loading="eager"
                     className="w-9 h-9 rounded-full object-cover ring-1 ring-white/20"
                   />
                 ) : (

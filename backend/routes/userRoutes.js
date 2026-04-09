@@ -1,6 +1,6 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { registerUser, loginUser, getCurrentUser, updateProfile, deleteAccount } from "../controllers/userController.js";
+import { registerUser, loginUser, getCurrentUser, updateProfile, deleteAccount, uploadAvatarAsset } from "../controllers/userController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -14,6 +14,7 @@ const authLimiter = rateLimit({
 
 router.post("/register", authLimiter, registerUser);
 router.post("/login", authLimiter, loginUser);
+router.post("/avatar-upload", authLimiter, uploadAvatarAsset);
 router.get("/me", protect, getCurrentUser);
 router.patch("/profile", protect, updateProfile);
 router.delete("/me", protect, deleteAccount);

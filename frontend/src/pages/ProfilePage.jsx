@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import AppImage from "../components/AppImage";
 import Navbar from "../components/Navbar";
 import { API_URL, authHeaders, clearStoredAuth, getStoredUser, getToken, requireAuthRedirect, updateStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
@@ -56,7 +57,7 @@ const ProfilePage = () => {
     setStatus("");
     setAvatarUploading(true);
     try {
-      const preparedAvatar = await prepareAvatarUpload(file);
+      const preparedAvatar = await prepareAvatarUpload(file, { withAuth: true });
       setAvatar(preparedAvatar);
     } catch (uploadError) {
       setIsSuccess(false);
@@ -129,7 +130,14 @@ const ProfilePage = () => {
         <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 sm:p-8 text-center flex flex-col items-center">
           <div className="relative mb-4">
             {avatar ? (
-              <img src={avatar} alt={username || user?.name} className="w-24 h-24 rounded-full object-cover border-2 border-white/10" />
+              <AppImage
+                src={avatar}
+                alt={username || user?.name}
+                width={96}
+                height={96}
+                loading="eager"
+                className="w-24 h-24 rounded-full object-cover border-2 border-white/10"
+              />
             ) : (
               <div className="w-24 h-24 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center">
                 <IC.User className="w-10 h-10 text-white/30" />
@@ -184,7 +192,14 @@ const ProfilePage = () => {
             <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
               <div className="flex items-center gap-4">
                 {avatar ? (
-                  <img src={avatar} alt="Avatar preview" className="w-16 h-16 rounded-full object-cover border border-white/10" />
+                  <AppImage
+                    src={avatar}
+                    alt="Avatar preview"
+                    width={64}
+                    height={64}
+                    loading="eager"
+                    className="w-16 h-16 rounded-full object-cover border border-white/10"
+                  />
                 ) : (
                   <div className="w-16 h-16 rounded-full border border-white/10 bg-white/5 flex items-center justify-center">
                     <IC.User className="w-7 h-7 text-white/30" />
@@ -233,7 +248,13 @@ const ProfilePage = () => {
                     onClick={() => setAvatar(preset)}
                     className={`rounded-full border-2 p-0.5 transition-colors ${avatar === preset ? "border-red-400" : "border-white/10 hover:border-white/30"}`}
                   >
-                    <img src={preset} alt="Avatar preset" className="w-12 h-12 rounded-full" />
+                    <AppImage
+                      src={preset}
+                      alt="Avatar preset"
+                      width={48}
+                      height={48}
+                      className="w-12 h-12 rounded-full"
+                    />
                   </button>
                 ))}
               </div>

@@ -5,6 +5,7 @@ import ChatMessage from "../models/ChatMessage.js";
 import Playlist from "../models/Playlist.js";
 import User from "../models/User.js";
 import { BADGE_TIERS, getNewlyEarnedBadges } from "../utils/badgeUtils.js";
+import { uploadBase64Media } from "../utils/mediaUpload.js";
 import { canAccessPlaylist, canModeratePublicPlaylist, canViewPlaylist, isPlaylistMember, isPlaylistOwner } from "../utils/playlistAccess.js";
 import { buildAvailablePlaylistTopics, normalizePlaylistTopics } from "../utils/playlistTopics.js";
 import { DEFAULT_TIMEZONE, getDateKeyInTimezone, serializeUser } from "../utils/userIdentity.js";
@@ -405,50 +406,6 @@ async function assertPlaylistAccess(playlistId, actor, options = {}) {
   normalizePlaylistState(playlist);
 
   return { playlist };
-}
-
-async function uploadToCloudinary(fileData, messageType) {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  if (!cloudName || !apiKey || !apiSecret) {
-    const error = new Error("Media storage is not configured");
-    error.status = 503;
-    error.body = { message: "Media uploads are not configured on the server yet" };
-    throw error;
-  }
-
-  const resourceType = messageType === "image" ? "image" : "video";
-  const timestamp = Math.floor(Date.now() / 1000);
-  const folder = "preptube/chat";
-  const signaturePayload = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
-  const signature = crypto.createHash("sha1").update(signaturePayload).digest("hex");
-  const normalizedFileData = fileData.replace(
-    /^(data:[a-zA-Z]+\/[a-zA-Z0-9]+)[^,]*(,)/,
-    "$1;base64$2"
-  );
-  const form = new FormData();
-  form.append("file", normalizedFileData);
-  form.append("folder", folder);
-  form.append("api_key", apiKey);
-  form.append("timestamp", String(timestamp));
-  form.append("signature", signature);
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
-    method: "POST",
-    body: form,
-  });
-
-  const payload = await response.json();
-  if (!response.ok) {
-    const error = new Error(payload?.error?.message || "Failed to upload media");
-    error.status = response.status;
-    error.body = { message: payload?.error?.message || "Failed to upload media" };
-    throw error;
-  }
-
-  return payload.secure_url;
 }
 
 export const createPlaylist = async (req, res) => {
@@ -1152,7 +1109,10 @@ export const uploadChatMedia = async (req, res) => {
       return res.status(400).json({ message: "Only image and audio uploads are supported" });
     }
 
-    const mediaUrl = await uploadToCloudinary(fileData, messageType);
+    const mediaUrl = await uploadBase64Media(fileData, {
+      folder: "preptube/chat",
+      resourceType: messageType === "image" ? "image" : "video",
+    });
     return res.json({
       message: "Upload successful",
       playlistId: playlist.playlistId,

@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Playlist from "../models/Playlist.js";
 import ChatMessage from "../models/ChatMessage.js";
 import dotenv from "dotenv";
+import { uploadBase64Media } from "../utils/mediaUpload.js";
 import { buildAvatarUrl, generateUniqueUsername, normalizeAvatarInput, resolveAvatarSource, serializeUser } from "../utils/userIdentity.js";
 import { sendWelcomeEmail, sendPasswordResetEmail, sendOwnerFeedbackEmail, sendOwnerQuestionEmail } from "../utils/emailService.js";
 import { trackEvent } from "../utils/analytics.js";
@@ -14,6 +15,22 @@ dotenv.config();
 const GOOGLE_MAIL_REGEX = /^[a-zA-Z0-9._%+-]+@(?:gmail\.com|googlemail\.com)$/i;
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+
+export const uploadAvatarAsset = async (req, res) => {
+  try {
+    const avatarUrl = await uploadBase64Media(req.body?.fileData, {
+      folder: "preptube/avatars",
+      resourceType: "image",
+    });
+
+    return res.json({
+      message: "Avatar uploaded successfully",
+      url: avatarUrl,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json(error.body || { message: error.message || "Unable to upload avatar" });
+  }
+};
 
 export const registerUser = async (req, res) => {
   const name = req.body.name?.trim();

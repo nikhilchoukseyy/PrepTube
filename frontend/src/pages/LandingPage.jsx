@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { motion } from "motion/react";
+import AppImage from "../components/AppImage";
 import Navbar from "../components/Navbar";
 import { API_URL, getStoredUser } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
@@ -369,9 +370,12 @@ const LandingPage = () => {
                       </button>
                     </>
                   ) : (
-                    <img
+                    <AppImage
                       src={demoImg}
                       alt="Demo Preview"
+                      width={1366}
+                      height={768}
+                      loading="eager"
                       className="h-full w-full object-cover"
                     />
                   )}
@@ -392,10 +396,11 @@ const LandingPage = () => {
                 className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-white/20 transition-all duration-300 aspect-[16/9]"
               >
                 {/* Image */}
-                <img
+                <AppImage
                   src={feature.bgImage}
                   alt={feature.title}
-                  loading="lazy"
+                  width={1366}
+                  height={768}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
 

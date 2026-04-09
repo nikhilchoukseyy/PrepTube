@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import AppImage from "../components/AppImage";
 import Navbar from "../components/Navbar";
 import UpgradePromptBanner from "../components/UpgradePromptBanner";
 import { API_URL, authHeaders, getStoredUser, getToken, requireAuthRedirect } from "../utils/auth";
@@ -18,8 +19,11 @@ const ThumbnailImage = ({ videoId, fallbackSrc, alt, className }) => {
   useEffect(() => { setSrcIndex(0); }, [videoId, fallbackSrc]);
   if (!sources.length) return null;
   return (
-    <img
+    <AppImage
       src={sources[srcIndex]} alt={alt} className={className}
+      width={1280}
+      height={720}
+      sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
       onError={() => setSrcIndex((i) => Math.min(i + 1, sources.length - 1))}
     />
   );

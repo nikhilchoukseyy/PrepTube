@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import posthog from "posthog-js";
+import AppImage from "../components/AppImage";
 import { API_ROOT, API_URL, setStoredAuth } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
 import { IC } from "./Icons";
@@ -85,7 +86,14 @@ const LoginPage = () => {
             href={`${API_ROOT}/api/auth/google?redirect=${encodeURIComponent(redirectTo)}`}
             className="w-full flex items-center justify-center gap-3 py-3 bg-white text-gray-900 font-semibold rounded-2xl hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-lg mb-5 text-sm"
           >
-            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+            <AppImage
+              src="https://www.google.com/favicon.ico"
+              alt="Google"
+              width={16}
+              height={16}
+              loading="eager"
+              className="w-4 h-4"
+            />
             Continue with Google
           </a>
 

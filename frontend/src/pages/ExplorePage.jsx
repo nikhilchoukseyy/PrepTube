@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import AppImage from "../components/AppImage";
 import Navbar from "../components/Navbar";
 import UpgradePromptBanner from "../components/UpgradePromptBanner";
 import { API_URL, authHeaders, getStoredUser, getToken, requireAuthRedirect } from "../utils/auth";
@@ -168,7 +169,14 @@ const ExplorePage = () => {
                 <article key={playlist.playlistId} className="rounded-[24px] sm:rounded-[28px] overflow-hidden border border-white/10 bg-white/[0.03] hover:border-white/20 transition-colors group flex flex-col">
                   <div className="aspect-video bg-black/30 overflow-hidden relative">
                     {playlist.thumbnail ? (
-                      <img src={playlist.thumbnail} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <AppImage
+                        src={playlist.thumbnail}
+                        alt={playlist.title}
+                        width={1280}
+                        height={720}
+                        sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <IC.Play className="w-8 h-8 text-white/15" />

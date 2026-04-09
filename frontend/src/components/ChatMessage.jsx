@@ -1,12 +1,20 @@
+import AppImage from "./AppImage";
+
 const ChatMessage = ({ message, nameSuffix = null, actions = null }) => {
   const sender = message?.sender || {};
   const senderName = sender.username || sender.name || sender.email || "User";
   const avatar = sender.avatar;
 
   return (
-    <div className="flex gap-3 items-start">
+      <div className="flex gap-3 items-start">
       {avatar ? (
-        <img src={avatar} alt={senderName} className="w-9 h-9 rounded-full object-cover border border-white/10" />
+        <AppImage
+          src={avatar}
+          alt={senderName}
+          width={36}
+          height={36}
+          className="w-9 h-9 rounded-full object-cover border border-white/10"
+        />
       ) : (
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-xs font-bold shrink-0">
           {senderName[0]?.toUpperCase() || "U"}
@@ -30,7 +38,16 @@ const ChatMessage = ({ message, nameSuffix = null, actions = null }) => {
 
         {message.messageType === "image" && message.mediaUrl ? (
           <a href={message.mediaUrl} target="_blank" rel="noreferrer" className="block">
-            <img src={message.mediaUrl} alt="Shared in chat" className="max-h-64 rounded-xl border border-white/10" />
+            <div className="w-full max-w-sm overflow-hidden rounded-xl border border-white/10 bg-black/30 aspect-[4/3]">
+              <AppImage
+                src={message.mediaUrl}
+                alt="Shared in chat"
+                width={640}
+                height={480}
+                sizes="(min-width: 640px) 320px, 85vw"
+                className="h-full w-full object-contain"
+              />
+            </div>
           </a>
         ) : null}
 
