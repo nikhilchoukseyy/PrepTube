@@ -1,7 +1,7 @@
 ﻿import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import { clearStoredAuth, getStoredUser, getToken } from "../utils/auth";
-import preptubeLogo from "../assets/preptube_logo.png";
+import preptubeLogo from "/preptube_logo.png";
 
 const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

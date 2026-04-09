@@ -31,5 +31,10 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-  }
+    allowedHosts: ['vernally-nondistortive-jarod.ngrok-free.dev'], 
+    hmr:{
+      clientPort: 5173,
+    }
+  } , 
+  
 })
