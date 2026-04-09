@@ -45,6 +45,7 @@ const progressSchema = new mongoose.Schema(
 const playlistSchema = new mongoose.Schema(
   {
     playlistId: { type: String, required: true, unique: true },
+    youtubePlaylistId: { type: String },
     title: { type: String, required: true },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -57,6 +58,15 @@ const playlistSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+playlistSchema.pre("validate", function syncYoutubePlaylistId(next) {
+  if (!this.youtubePlaylistId && this.playlistId) {
+    // Legacy documents stored the YouTube playlist id directly in playlistId.
+    this.youtubePlaylistId = this.playlistId;
+  }
+
+  next();
+});
 
 playlistSchema.path("videoNotes").validate(function validateUniqueVideoNotes(videoNotes = []) {
   const noteKeys = videoNotes
@@ -72,6 +82,7 @@ playlistSchema.path("videoNotes").validate(function validateUniqueVideoNotes(vid
 const Playlist = mongoose.model("Playlist", playlistSchema);
 
 playlistSchema.index({ owner: 1 })                    
+playlistSchema.index({ youtubePlaylistId: 1 })        
 playlistSchema.index({ isPublic: 1, createdAt: -1 })  
 playlistSchema.index({ inviteToken: 1 })              
 playlistSchema.index({ members: 1 })                 

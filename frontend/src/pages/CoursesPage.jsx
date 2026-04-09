@@ -60,6 +60,7 @@ const CoursesPage = () => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [importWarning, setImportWarning] = useState("");
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const [joinToken, setJoinToken] = useState("");
@@ -95,9 +96,12 @@ const CoursesPage = () => {
   const handleCreatePlaylist = async (event) => {
     event.preventDefault();
     if (!playlistUrl.trim()) return;
-    setCreating(true); setError(""); setUpgradePrompt("");
+    setCreating(true); setError(""); setUpgradePrompt(""); setImportWarning("");
     try {
-      await axios.post(`${API_URL}/playlists/create`, { playlistUrl }, { headers: authHeaders() });
+      const res = await axios.post(`${API_URL}/playlists/create`, { playlistUrl }, { headers: authHeaders() });
+      if (res.data?.warning?.code === "PLAYLIST_ALREADY_PUBLIC") {
+        setImportWarning(res.data.warning.message || "This playlist is already public in Explore by another user.");
+      }
       setPlaylistUrl(""); fetchPlaylists();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to import playlist");
@@ -186,6 +190,20 @@ const CoursesPage = () => {
           </div>
 
           {upgradePrompt && <UpgradePromptBanner message={upgradePrompt} className="mb-4" />}
+          {importWarning && (
+            <div className="mb-4 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3">
+              <div className="flex items-start gap-2.5 text-left text-sky-100">
+                <IC.Globe className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Already public in Explore</p>
+                  <p className="mt-1 text-sm font-medium text-sky-100/80">{importWarning}</p>
+                </div>
+                <button onClick={() => setImportWarning("")} className="ml-auto text-sky-100/50 hover:text-sky-100">
+                  <IC.X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Single unified row */}
           <div className="flex flex-col sm:flex-row items-stretch gap-2.5">

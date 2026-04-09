@@ -15,6 +15,30 @@ dotenv.config();
 
 const FRONTEND_BASE_URL = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim();
 
+function getYoutubePlaylistId(playlist) {
+  return String(playlist?.youtubePlaylistId || playlist?.playlistId || "");
+}
+
+function buildYoutubePlaylistLookup(youtubePlaylistId) {
+  return {
+    $or: [
+      { youtubePlaylistId },
+      { youtubePlaylistId: { $exists: false }, playlistId: youtubePlaylistId },
+      { youtubePlaylistId: null, playlistId: youtubePlaylistId },
+    ],
+  };
+}
+
+async function generateUniquePlaylistId() {
+  let nextPlaylistId = "";
+
+  do {
+    nextPlaylistId = crypto.randomBytes(10).toString("hex");
+  } while (await Playlist.exists({ playlistId: nextPlaylistId }));
+
+  return nextPlaylistId;
+}
+
 function extractInviteToken(rawValue) {
   if (!rawValue || typeof rawValue !== "string") return "";
 
@@ -432,30 +456,36 @@ export const createPlaylist = async (req, res) => {
     const { playlistUrl } = req.body;
     const userId = req.user._id;
     const urlParams = new URLSearchParams(new URL(playlistUrl).search);
-    const playlistId = urlParams.get("list");
+    const youtubePlaylistId = urlParams.get("list");
 
-    if (!playlistId) {
+    if (!youtubePlaylistId) {
       return res.status(400).json({ message: "Invalid YouTube playlist URL" });
     }
 
-    // Check if the current user has already imported this playlist
-    const userPlaylistWithSameId = await Playlist.findOne({
-      playlistId,
-      $or: [{ owner: userId }, { members: userId }],
+    // Only check if this user already imported the YouTube playlist before.
+    const existingUserPlaylist = await Playlist.findOne({
+      owner: userId,
+      ...buildYoutubePlaylistLookup(youtubePlaylistId),
     });
 
-    if (userPlaylistWithSameId) {
+    if (existingUserPlaylist) {
       return res.status(200).json({
         message: "Playlist already exists in your library",
-        playlist: userPlaylistWithSameId,
+        playlist: existingUserPlaylist,
       });
     }
+
+    const existingPublicPlaylist = await Playlist.findOne({
+      isPublic: true,
+      owner: { $ne: userId },
+      ...buildYoutubePlaylistLookup(youtubePlaylistId),
+    }).select("title");
 
     const apiKey = process.env.YOUTUBE_API_KEY;
     const playlistMetaResponse = await axios.get("https://www.googleapis.com/youtube/v3/playlists", {
       params: {
         part: "snippet",
-        id: playlistId,
+        id: youtubePlaylistId,
         key: apiKey,
       },
     });
@@ -473,7 +503,7 @@ export const createPlaylist = async (req, res) => {
       const response = await axios.get(baseUrl, {
         params: {
           part: "snippet",
-          playlistId,
+          playlistId: youtubePlaylistId,
           maxResults: 50,
           pageToken: nextPageToken,
           key: apiKey,
@@ -523,7 +553,8 @@ export const createPlaylist = async (req, res) => {
     }));
 
     const newPlaylist = new Playlist({
-      playlistId,
+      playlistId: await generateUniquePlaylistId(),
+      youtubePlaylistId,
       title: playlistTitle,
       videos,
       owner: userId,
@@ -535,14 +566,23 @@ export const createPlaylist = async (req, res) => {
 
     trackEvent(userId, "playlist_imported", {
       playlistId: newPlaylist.playlistId,
+      youtubePlaylistId: newPlaylist.youtubePlaylistId,
       title: newPlaylist.title,
       videoCount: newPlaylist.videos.length,
     });
+
+    const warning = existingPublicPlaylist
+      ? {
+          code: "PLAYLIST_ALREADY_PUBLIC",
+          message: `"${existingPublicPlaylist.title || playlistTitle}" is already in the Explore feed by another user. You can still study it privately.`,
+        }
+      : null;
 
     return res.status(201).json({
       message: "Playlist created successfully",
       totalVideos: videos.length,
       playlist: newPlaylist,
+      ...(warning ? { warning } : {}),
     });
   } catch (error) {
     console.error("Error creating playlist:", error.message);
@@ -570,11 +610,12 @@ export const getUserPlaylist = async (req, res) => {
       const todayMinutes = requesterProgress?.dailyMinutes?.find((entry) => entry.date === todayKey)?.minutes || 0;
 
       return {
-        _id: playlist._id,
-        playlistId: playlist.playlistId,
-        title: playlist.title,
-        owner: formatMember(playlist.owner),
-        members: (playlist.members || []).map(formatMember),
+      _id: playlist._id,
+      playlistId: playlist.playlistId,
+      youtubePlaylistId: getYoutubePlaylistId(playlist),
+      title: playlist.title,
+      owner: formatMember(playlist.owner),
+      members: (playlist.members || []).map(formatMember),
         isPublic: playlist.isPublic,
         topics: normalizePlaylistTopics(playlist.topics || []),
         inviteToken: playlist.inviteToken,
@@ -612,6 +653,7 @@ export const getExplorePlaylists = async (req, res) => {
 
     const explorePlaylists = playlists.map((playlist) => ({
       playlistId: playlist.playlistId,
+      youtubePlaylistId: getYoutubePlaylistId(playlist),
       title: playlist.title,
       owner: formatMember(playlist.owner),
       videoCount: playlist.videos.length,
@@ -705,6 +747,7 @@ export const getPlaylistDetail = async (req, res) => {
     return res.status(200).json({
       playlist: {
         playlistId: playlist.playlistId,
+        youtubePlaylistId: getYoutubePlaylistId(playlist),
         title: playlist.title,
         owner: {
           ...formatMember(playlist.owner),
