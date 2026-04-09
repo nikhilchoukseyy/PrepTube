@@ -17,12 +17,13 @@ PrepTube currently supports:
 - Password reset by email
 - Profile editing with uploaded or generated avatars
 - YouTube playlist import through the YouTube Data API
-- One PrepTube room per imported YouTube playlist
+- Independent PrepTube room creation for each user's import, even when multiple users import the same YouTube playlist
 - Private and public playlist visibility
 - Topic tagging for Explore discovery
 - Invite-link joining through persistent tokens
 - Public Explore feed with topic filters
 - Video completion tracking per user
+- Course-library playlist cards that show the requester's completion percentage
 - Private per-video notes per user
 - Per-playlist streak tracking based on study time
 - Real-time room chat with text, image, and voice messages
@@ -36,7 +37,9 @@ PrepTube currently supports:
 
 ## Product Rules
 
-- Each imported YouTube playlist maps to a single PrepTube room because `playlistId` is unique in MongoDB.
+- Each import creates its own PrepTube room document.
+- `playlistId` is the PrepTube room id used in routes, invite flows, and Socket.IO room joins.
+- `youtubePlaylistId` stores the original YouTube playlist source id and can be shared by many independent PrepTube rooms.
 - Free rooms allow up to `6` total people including the owner.
 - If the owner has active premium access, future joins are not blocked by the free member cap.
 - If premium expires, existing members keep access; the cap only affects future joins.
@@ -45,6 +48,7 @@ PrepTube currently supports:
 - Video notes are private to the author even inside shared rooms.
 - Streaks are tracked per user, per playlist, using the `Asia/Kolkata` timezone.
 - A streak day counts when the user logs at least `30` minutes in that playlist on that date.
+- Importing a playlist that is already public in Explore by another user still succeeds and returns a friendly warning instead of blocking the import.
 
 ## Tech Stack
 
@@ -130,6 +134,7 @@ flowchart LR
 - `adminOnly` protects admin-only routes.
 - `planMiddleware` blocks joins when a free room is already full.
 - Controllers own business logic, persistence, third-party API calls, and normalization.
+- Playlist controllers treat room identity and source identity separately: room lookups use `playlistId`, while duplicate-import checks and public-source warnings use `youtubePlaylistId`.
 
 ## Core Data Flow
 
@@ -174,16 +179,22 @@ Important auth notes:
 User pastes a YouTube playlist URL on /courses
 -> frontend POST /api/playlists/create
 -> backend extracts the YouTube list id
+-> backend checks whether this owner already imported that source playlist
+-> backend checks whether another user's public room already exposes that source playlist in Explore
 -> backend fetches playlist metadata from YouTube
 -> backend fetches playlist items, paginated
 -> backend fetches video durations in batches
 -> backend stores normalized videos in MongoDB
+-> backend generates a unique PrepTube room id
 -> backend creates a persistent invite token
+-> backend optionally returns PLAYLIST_ALREADY_PUBLIC warning metadata
 -> frontend refreshes the course library
 ```
 
 Imported playlist documents store:
 
+- PrepTube room id
+- source YouTube playlist id
 - room ownership and collaborators
 - visibility and topics
 - normalized video metadata
@@ -202,6 +213,10 @@ Owner edits topics and makes playlist public
 -> playlist appears in /api/playlists/explore
 -> frontend Explore screen filters public rooms by topic chips
 ```
+
+Important visibility note:
+
+- Explore lists public PrepTube rooms, not unique YouTube source playlists. Different users can publish their own room copies of the same underlying YouTube playlist.
 
 ### 4. Invite and join flow
 
@@ -242,6 +257,11 @@ User stays active in workspace
 -> backend merges time into progress[user].dailyMinutes
 -> backend recalculates streaks and badges
 ```
+
+Library payload notes:
+
+- `/api/playlists/my-playlists` returns room-scoped playlist cards for the current user.
+- Each playlist card payload includes requester-specific completion data so the Courses screen can render the same progress state shown inside the workspace.
 
 ### 6. Chat and media flow
 
@@ -370,6 +390,7 @@ Stored in `backend/models/Playlist.js`.
 Key fields:
 
 - `playlistId`
+- `youtubePlaylistId`
 - `title`
 - `owner`
 - `members[]`
@@ -408,7 +429,9 @@ Behavioral notes:
 
 - Progress and notes are embedded inside the playlist document, not stored as separate collections.
 - Playlist state is normalized in controller flows to dedupe notes, progress rows, and topics.
-- There is one unique playlist document per YouTube playlist id.
+- `playlistId` is the unique PrepTube room identifier.
+- `youtubePlaylistId` keeps the original YouTube source id for import dedupe checks, public-source warnings, and backward compatibility with legacy documents.
+- Many playlist documents can now reference the same `youtubePlaylistId` while remaining fully independent rooms.
 
 ### `ChatMessage`
 
@@ -510,8 +533,8 @@ Behavioral notes:
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/explore` | Public playlists + topic options |
-| `POST` | `/create` | Import YouTube playlist |
-| `GET` | `/my-playlists` | Rooms owned by or joined by the user |
+| `POST` | `/create` | Import YouTube playlist into a new room for the current user |
+| `GET` | `/my-playlists` | Rooms owned by or joined by the user, including requester progress summaries |
 | `POST` | `/mark` | Mark video complete |
 | `POST` | `/unmark` | Unmark video |
 | `POST` | `/join` | Join by invite token or public playlist id |
@@ -645,6 +668,7 @@ PrepTube/
 - `CoursesPage.jsx`
   - private library view
   - playlist import
+  - import warning banner for already-public source playlists
   - invite-token join
   - owned-room deletion
 - `ExplorePage.jsx`
@@ -718,6 +742,7 @@ PrepTube/
   - submit question
 - `playlistController.js`
   - create/import playlist
+  - room id generation and YouTube-source import checks
   - list user playlists
   - list public Explore playlists
   - mark/unmark videos
@@ -869,6 +894,7 @@ Backend:  http://localhost:5000
 - Playlist progress, notes, streak history, members, and videos all live inside one playlist document.
 - Socket.IO room state is process-local, so horizontal scaling would need a shared adapter such as Redis.
 - Explore has topic filtering but no search, ranking, or pagination yet.
+- Explore is room-based, so multiple public rooms can represent the same YouTube source playlist.
 - Chat history REST fetch returns only the latest `50` messages.
 - Voice and image uploads still flow through the backend before Cloudinary.
 - Imported YouTube metadata is persisted in MongoDB, but the app does not yet implement a periodic YouTube refresh/resync workflow. This matters for freshness and policy compliance.
