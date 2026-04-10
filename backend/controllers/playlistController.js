@@ -664,31 +664,62 @@ export const markVideoCompleted = async (req, res) => {
 export const getPlaylistDetail = async (req, res) => {
   try {
     const { playlistId } = req.params;
-    const { playlist, error } = await assertPlaylistAccess(playlistId, req.user, { allowAdminPublicAccess: true });
+
+    const { playlist, error } = await assertPlaylistAccess(
+      playlistId,
+      req.user,
+      { allowAdminPublicAccess: true }
+    );
+
     if (error) {
       return res.status(error.status).json(error.body);
     }
 
-    const { totalSeconds, totalHours, userStats } = computePlaylistStats(playlist);
+    const { totalSeconds, totalHours, userStats } =
+      computePlaylistStats(playlist);
+
     const requesterId = String(req.user._id);
     const isOwner = isPlaylistOwner(playlist, req.user);
     const isMember = isPlaylistMember(playlist, req.user);
     const isAdminModerator = canModeratePublicPlaylist(playlist, req.user);
-    const requesterProgress = playlist.progress.find((entry) => String(entry.user?._id || entry.user) === requesterId);
-    const progressByUserId = new Map(
-      (playlist.progress || []).map((entry) => [String(entry.user?._id || entry.user), entry])
+
+    const requesterProgress = playlist.progress.find(
+      (entry) =>
+        String(entry.user?._id || entry.user) === requesterId
     );
-    const completedSet = new Set(requesterProgress?.completedVideos || []);
+
+    const progressByUserId = new Map(
+      (playlist.progress || []).map((entry) => [
+        String(entry.user?._id || entry.user),
+        entry,
+      ])
+    );
+
+    const completedSet = new Set(
+      requesterProgress?.completedVideos || []
+    );
+
     const noteByVideoId = new Map(
       (playlist.videoNotes || [])
-        .filter((note) => getEntityId(note?.user) === requesterId)
+        .filter(
+          (note) => getEntityId(note?.user) === requesterId
+        )
         .map((note) => [note.videoId, note])
     );
-    const todayKey = getDateKeyInTimezone(new Date(), DEFAULT_TIMEZONE);
-    const todayMinutes = requesterProgress?.dailyMinutes?.find((entry) => entry.date === todayKey)?.minutes || 0;
+
+    const todayKey = getDateKeyInTimezone(
+      new Date(),
+      DEFAULT_TIMEZONE
+    );
+
+    const todayMinutes =
+      requesterProgress?.dailyMinutes?.find(
+        (entry) => entry.date === todayKey
+      )?.minutes || 0;
 
     const videos = playlist.videos.map((video) => {
       const videoNote = noteByVideoId.get(video.videoId);
+
       return {
         videoId: video.videoId,
         title: video.title,
@@ -701,18 +732,25 @@ export const getPlaylistDetail = async (req, res) => {
       };
     });
 
-    return res.status(200).json({
+    // ✅ STEP 1: prepare response object
+    const responseData = {
       playlist: {
         playlistId: playlist.playlistId,
         youtubePlaylistId: getYoutubePlaylistId(playlist),
         title: playlist.title,
         owner: {
           ...formatMember(playlist.owner),
-          earnedBadges: progressByUserId.get(String(playlist.owner?._id || playlist.owner))?.earnedBadges || [],
+          earnedBadges:
+            progressByUserId.get(
+              String(playlist.owner?._id || playlist.owner)
+            )?.earnedBadges || [],
         },
         members: (playlist.members || []).map((member) => ({
           ...formatMember(member),
-          earnedBadges: progressByUserId.get(String(member?._id || member))?.earnedBadges || [],
+          earnedBadges:
+            progressByUserId.get(
+              String(member?._id || member)
+            )?.earnedBadges || [],
         })),
         videos,
         isPublic: playlist.isPublic,
@@ -739,7 +777,19 @@ export const getPlaylistDetail = async (req, res) => {
           streakTimezone: DEFAULT_TIMEZONE,
         },
       },
+    };
+
+    // ✅ STEP 2: send response FIRST
+    res.status(200).json(responseData);
+
+    // ✅ STEP 3: background update (NON-BLOCKING)
+    Playlist.updateOne(
+      { playlistId },
+      { $set: { lastAccessedAt: new Date() } }
+    ).catch((err) => {
+      console.error("lastAccessedAt update failed:", err.message);
     });
+
   } catch (error) {
     console.error("getPlaylistDetail error:", error);
     return res.status(500).json({ message: "Server error" });

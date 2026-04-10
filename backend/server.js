@@ -11,8 +11,14 @@ import adminRoutes from "./routes/adminRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import passport from "./config/passport.js";
 import setupSocket from "./socket/index.js";
-import compression from 'compression';
+import compression from "compression";
 import rateLimit from "express-rate-limit";
+import "./jobs/syncPlaylists.js";
+import "./workers/syncWorker.js";
+import { createBullBoard } from "@bull-board/api";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { ExpressAdapter } from "@bull-board/express";
+import { syncQueue } from "./queues/syncQueue.js";
 
 dotenv.config();
 connectDB();
@@ -44,11 +50,24 @@ app.use(
     credentials: true,
   })
 );
-app.use("/api", globalApiLimiter);
-app.use("/api/payment", paymentRoutes);
 app.use(express.json({ limit: "25mb" }));
 app.use(passport.initialize());
 
+
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath("/admin/queues");
+
+createBullBoard({
+  queues: [new BullMQAdapter(syncQueue)],
+  serverAdapter,
+});
+
+app.use("/admin/queues", serverAdapter.getRouter());
+console.log("🎯 Bull Board: http://localhost:5000/admin/queues");
+
+
+app.use("/api", globalApiLimiter);
+app.use("/api/payment", paymentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/playlists", playlistRoutes);

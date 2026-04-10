@@ -55,6 +55,9 @@ const playlistSchema = new mongoose.Schema(
     videos: [videoSchema],
     videoNotes: [videoNoteSchema],
     progress: [progressSchema],
+    lastSyncedAt: { type: Date , default:null},
+    lastAccessedAt: { type: Date , default:Date.now},
+    lastVideoPublishedAt:{type:Date,default:null},
   },
   { timestamps: true }
 );
