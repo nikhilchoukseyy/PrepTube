@@ -19,11 +19,23 @@ import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ExpressAdapter } from "@bull-board/express";
 import { syncQueue } from "./queues/syncQueue.js";
+import helmet from 'helmet'; 
 
 dotenv.config();
 connectDB();
 
 const app = express();
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "checkout.razorpay.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
 const server = http.createServer(app);
 setupSocket(server);
 app.set("trust proxy", 1);

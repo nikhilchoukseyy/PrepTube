@@ -19,6 +19,8 @@ passport.use(
         const email = profile.emails?.[0]?.value?.toLowerCase();
         const googleAvatar = profile.photos?.[0]?.value;
         let isNewUser = false;
+        user.avatar = googleAvatar || user.avatar;
+        user.avatarSource = googleAvatar ? "google" : user.avatarSource;
 
         let user = await User.findOne({ googleId: profile.id });
         if (user) {

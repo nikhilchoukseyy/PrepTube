@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function preSave(next) {
-  if (!this.avatar) {
+  if (this.isNew && !this.avatar) {
     this.avatar = buildAvatarUrl(this.username || this.name || this.email);
     this.avatarSource = "generated";
   }

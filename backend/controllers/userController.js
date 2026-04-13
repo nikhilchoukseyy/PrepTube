@@ -104,7 +104,7 @@ export const forgotPassword = async (req, res) => {
     const user = await User.findOne({ email }).select("email googleId password passwordResetToken passwordResetExpires");
 
 
-    if (!user || (user.googleId && !user.password)) {
+    if (!user) {
       return res.json({ message: "If this email exists, a reset link has been sent." });
     }
 
@@ -141,13 +141,18 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    
+
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: Date.now() }, 
-    }).select("password passwordResetToken passwordResetExpires");
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    user.password = password;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
 
     if (!user) {
       return res.status(400).json({ message: "Token is invalid or has expired" });
