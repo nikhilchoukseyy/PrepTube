@@ -1,27 +1,29 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import dotenv from "dotenv";
 dotenv.config();
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Mail transporter error:", error.message);
-  } else {
-    console.log("✅ Mail server is ready");
+async function sendEmail({ to, subject, html, replyTo }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
   }
-});
+
+  if (!process.env.EMAIL_FROM) {
+    throw new Error("EMAIL_FROM is not configured");
+  }
+
+  return resend.emails.send({
+    from: process.env.EMAIL_FROM,
+    to,
+    subject,
+    html,
+    replyTo,
+  });
+}
 
 export const sendWelcomeEmail = async (toEmail, name) => {
   const mailOptions = {
-    from: `"PrepTube" <${process.env.EMAIL_USER}>`,
     to: toEmail,
     subject: "Welcome to PrepTube! 🎉",
     html: `
@@ -35,7 +37,7 @@ export const sendWelcomeEmail = async (toEmail, name) => {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendEmail(mailOptions);
 };
 
 
@@ -43,7 +45,6 @@ export const sendPasswordResetEmail = async (toEmail, resetToken) => {
   const resetURL = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
   const mailOptions = {
-    from: `"PrepTube" <${process.env.EMAIL_USER}>`,
     to: toEmail,
     subject: "Reset Your PrepTube Password 🔑",
     html: `
@@ -63,18 +64,17 @@ export const sendPasswordResetEmail = async (toEmail, resetToken) => {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendEmail(mailOptions);
 };
 
 export const sendOwnerQuestionEmail = async ({ name, email, question }) => {
-  const ownerEmail = process.env.OWNER_EMAIL || process.env.EMAIL_USER;
+  const ownerEmail = process.env.OWNER_EMAIL;
 
   if (!ownerEmail) {
     throw new Error("Owner email is not configured");
   }
 
   const mailOptions = {
-    from: `"PrepTube" <${process.env.EMAIL_USER}>`,
     to: ownerEmail,
     replyTo: email,
     subject: `New PrepTube FAQ question from ${name}`,
@@ -89,18 +89,17 @@ export const sendOwnerQuestionEmail = async ({ name, email, question }) => {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendEmail(mailOptions);
 };
 
 export const sendOwnerFeedbackEmail = async ({ name, email, feedback }) => {
-  const ownerEmail = process.env.OWNER_EMAIL || process.env.EMAIL_USER;
+  const ownerEmail = process.env.OWNER_EMAIL;
 
   if (!ownerEmail) {
     throw new Error("Owner email is not configured");
   }
 
   const mailOptions = {
-    from: `"PrepTube" <${process.env.EMAIL_USER}>`,
     to: ownerEmail,
     replyTo: email,
     subject: `New PrepTube feedback from ${name}`,
@@ -115,5 +114,5 @@ export const sendOwnerFeedbackEmail = async ({ name, email, feedback }) => {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await sendEmail(mailOptions);
 };
