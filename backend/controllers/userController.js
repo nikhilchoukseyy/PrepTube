@@ -149,16 +149,10 @@ export const resetPassword = async (req, res) => {
       passwordResetExpires: { $gt: Date.now() },
     });
 
-    user.password = password;
-    user.passwordResetToken = null;
-    user.passwordResetExpires = null;
-    await user.save();
-
     if (!user) {
       return res.status(400).json({ message: "Token is invalid or has expired" });
     }
 
-    // Password update karo, token clear karo
     user.password = password;
     user.passwordResetToken = null;
     user.passwordResetExpires = null;

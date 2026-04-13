@@ -19,8 +19,6 @@ passport.use(
         const email = profile.emails?.[0]?.value?.toLowerCase();
         const googleAvatar = profile.photos?.[0]?.value;
         let isNewUser = false;
-        user.avatar = googleAvatar || user.avatar;
-        user.avatarSource = googleAvatar ? "google" : user.avatarSource;
 
         let user = await User.findOne({ googleId: profile.id });
         if (user) {
@@ -33,6 +31,9 @@ passport.use(
           if (!user.avatar) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
             user.avatarSource = googleAvatar ? "google" : "generated";
+          } else if (user.avatarSource === "google" && googleAvatar) {
+            user.avatar = googleAvatar;
+            user.avatarSource = "google";
           } else if (!user.avatarSource) {
             user.avatarSource = resolveAvatarSource(user);
           }
@@ -55,6 +56,9 @@ passport.use(
           if (!user.avatar) {
             user.avatar = googleAvatar || buildAvatarUrl(user.username || user.name || email);
             user.avatarSource = googleAvatar ? "google" : "generated";
+          } else if (user.avatarSource === "google" && googleAvatar) {
+            user.avatar = googleAvatar;
+            user.avatarSource = "google";
           } else if (!user.avatarSource) {
             user.avatarSource = resolveAvatarSource(user);
           }
@@ -94,4 +98,3 @@ passport.use(
 );
 
 export default passport;
-
