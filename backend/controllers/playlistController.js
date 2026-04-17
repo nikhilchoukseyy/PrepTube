@@ -531,7 +531,7 @@ export const createPlaylist = async (req, res) => {
     const warning = existingPublicPlaylist
       ? {
           code: "PLAYLIST_ALREADY_PUBLIC",
-          message: `"${existingPublicPlaylist.title || playlistTitle}" is already in the Explore feed by another user. You can still study it privately.`,
+          message: `"${existingPublicPlaylist.title || playlistTitle}" is already in the Public feed by another user. You can still study it privately.`,
         }
       : null;
 
@@ -602,13 +602,13 @@ export const getUserPlaylist = async (req, res) => {
   }
 };
 
-export const getExplorePlaylists = async (req, res) => {
+export const getPublicPlaylists = async (req, res) => {
   try {
     const playlists = await Playlist.find({ isPublic: true })
       .populate("owner", "name email username avatar isPremium plan premiumExpiresAt")
       .sort({ updatedAt: -1 }).lean();
 
-    const explorePlaylists = playlists.map((playlist) => ({
+    const publicPlaylists = playlists.map((playlist) => ({
       playlistId: playlist.playlistId,
       youtubePlaylistId: getYoutubePlaylistId(playlist),
       title: playlist.title,
@@ -622,11 +622,11 @@ export const getExplorePlaylists = async (req, res) => {
     }));
 
     return res.json({
-      playlists: explorePlaylists,
+      playlists: publicPlaylists,
       availableTopics: buildAvailablePlaylistTopics(playlists),
     });
   } catch (error) {
-    console.error("Error loading explore playlists", error.message);
+    console.error("Error loading public playlists", error.message);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -930,7 +930,7 @@ export const joinPlaylist = async (req, res) => {
     const userId = req.user._id;
     const token = extractInviteToken(req.body?.token);
     const publicPlaylistId = req.body?.playlistId?.trim();
-    const joinMethod = token ? "invite" : "explore";
+    const joinMethod = token ? "invite" : "public";
 
     let playlist = req.joinTargetPlaylist || null;
     if (!playlist && token) {

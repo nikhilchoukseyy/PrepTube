@@ -6,7 +6,7 @@ import {
   deletePlaylist,
   generateInviteToken,
   getChatMessage,
-  getExplorePlaylists,
+  getPublicPlaylists,
   getPlaylistDetail,
   getUserPlaylist,
   joinPlaylist,
@@ -31,7 +31,8 @@ const playlistImportLimiter = rateLimit({
   message: { message: "Import limit reached. Please wait before importing another playlist." },
 });
 
-router.get("/explore", getExplorePlaylists);
+router.get("/public", getPublicPlaylists);
+router.get("/explore", getPublicPlaylists);
 router.post("/create", playlistImportLimiter, protect, createPlaylist);
 router.get("/my-playlists", protect, getUserPlaylist);
 router.post("/mark", protect, markVideoCompleted);

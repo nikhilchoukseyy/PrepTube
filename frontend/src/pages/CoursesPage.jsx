@@ -6,6 +6,11 @@ import Navbar from "../components/Navbar";
 import UpgradePromptBanner from "../components/UpgradePromptBanner";
 import { API_URL, authHeaders, getStoredUser, getToken, requireAuthRedirect } from "../utils/auth";
 import { setPageMeta } from "../utils/meta";
+import {
+  clearPendingPlaylistUrl,
+  createPlaylistFromUrl,
+  getPendingPlaylistUrl,
+} from "../utils/playlistImport";
 import { dedupePlaylistTopics } from "../utils/playlistTopics";
 import { IC } from "./Icons";
 
@@ -71,6 +76,7 @@ const CoursesPage = () => {
   const [joining, setJoining] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [upgradePrompt, setUpgradePrompt] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("Loading your courses...");
   const navigate = useNavigate();
   const currentUser = getStoredUser();
 
@@ -83,7 +89,37 @@ const CoursesPage = () => {
 
   useEffect(() => {
     if (!getToken()) { requireAuthRedirect(navigate, "/courses"); return; }
-    fetchPlaylists();
+
+    const bootstrap = async () => {
+      const pendingPlaylistUrl = getPendingPlaylistUrl().trim();
+
+      if (!pendingPlaylistUrl) {
+        await fetchPlaylists();
+        return;
+      }
+
+      setLoadingMessage("Creating your room...");
+      setCreating(true);
+      setError("");
+      setUpgradePrompt("");
+      setImportWarning("");
+
+      try {
+        const data = await createPlaylistFromUrl(pendingPlaylistUrl);
+        clearPendingPlaylistUrl();
+        navigate(`/video/${data.playlist?.playlistId || ""}`, { replace: true });
+        return;
+      } catch (err) {
+        setError(err.response?.data?.message || "Failed to import playlist");
+      } finally {
+        setCreating(false);
+        setLoadingMessage("Loading your courses...");
+      }
+
+      await fetchPlaylists();
+    };
+
+    bootstrap();
   }, [navigate]);
 
   const fetchPlaylists = async () => {
@@ -102,11 +138,12 @@ const CoursesPage = () => {
     if (!playlistUrl.trim()) return;
     setCreating(true); setError(""); setUpgradePrompt(""); setImportWarning("");
     try {
-      const res = await axios.post(`${API_URL}/playlists/create`, { playlistUrl }, { headers: authHeaders() });
-      if (res.data?.warning?.code === "PLAYLIST_ALREADY_PUBLIC") {
-        setImportWarning(res.data.warning.message || "This playlist is already public in Explore by another user.");
+      const data = await createPlaylistFromUrl(playlistUrl.trim());
+      if (data?.warning?.code === "PLAYLIST_ALREADY_PUBLIC") {
+        setImportWarning(data.warning.message || "This playlist is already public in the Public feed by another user.");
       }
-      setPlaylistUrl(""); fetchPlaylists();
+      setPlaylistUrl("");
+      await fetchPlaylists();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to import playlist");
     } finally { setCreating(false); }
@@ -145,7 +182,7 @@ const CoursesPage = () => {
     <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <span className="w-8 h-8 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-        <p className="text-white/40 text-sm font-medium">Loading your courses...</p>
+        <p className="text-white/40 text-sm font-medium">{loadingMessage}</p>
       </div>
     </div>
   );
@@ -199,7 +236,7 @@ const CoursesPage = () => {
               <div className="flex items-start gap-2.5 text-left text-sky-100">
                 <IC.Globe className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">Already public in Explore</p>
+                  <p className="text-sm font-semibold">Already public in Public</p>
                   <p className="mt-1 text-sm font-medium text-sky-100/80">{importWarning}</p>
                 </div>
                 <button onClick={() => setImportWarning("")} className="ml-auto text-sky-100/50 hover:text-sky-100">
@@ -291,10 +328,10 @@ const CoursesPage = () => {
               </p>
             </div>
             <Link
-              to="/explore"
+              to="/public"
               className="flex items-center gap-1.5 text-sm text-red-300/80 hover:text-red-300 font-semibold transition-colors"
             >
-              <IC.Compass className="w-3.5 h-3.5" /> Explore
+              <IC.Compass className="w-3.5 h-3.5" /> Public
             </Link>
           </div>
 

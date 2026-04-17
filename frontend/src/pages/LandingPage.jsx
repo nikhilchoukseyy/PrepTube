@@ -1,10 +1,11 @@
 ﻿import { useEffect, useMemo, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion } from "motion/react";
 import AppImage from "../components/AppImage";
 import Navbar from "../components/Navbar";
 import { API_URL, getStoredUser } from "../utils/auth";
+import { createPlaylistFromUrl, setPendingPlaylistUrl } from "../utils/playlistImport";
 import { setPageMeta } from "../utils/meta";
 import { LIMITED_TIME_PRO_PROMO } from "../utils/promo";
 import { Volume2, VolumeX } from "lucide-react";
@@ -149,6 +150,7 @@ const features = [
 
 const LandingPage = () => {
   const user = getStoredUser();
+  const navigate = useNavigate();
 
   const heroCtaLink = useMemo(
     () => (user ? "/courses" : "/login?redirect=/courses"),
@@ -157,6 +159,9 @@ const LandingPage = () => {
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef(null);
   const [reviews, setReviews] = useState([]);
+  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [importingPlaylist, setImportingPlaylist] = useState(false);
+  const [importError, setImportError] = useState("");
   const scrollingReviews = useMemo(
     () => (reviews.length > 1 ? [...reviews, ...reviews] : reviews),
     [reviews]
@@ -215,6 +220,31 @@ const LandingPage = () => {
     };
   }, []);
 
+  const handleHeroImport = async (event) => {
+    event.preventDefault();
+    const trimmedUrl = playlistUrl.trim();
+    if (!trimmedUrl) return;
+
+    setImportError("");
+
+    if (!user) {
+      setPendingPlaylistUrl(trimmedUrl);
+      navigate("/login?redirect=/courses");
+      return;
+    }
+
+    setImportingPlaylist(true);
+    try {
+      const data = await createPlaylistFromUrl(trimmedUrl);
+      setPlaylistUrl("");
+      navigate(`/video/${data.playlist?.playlistId || ""}`);
+    } catch (error) {
+      setImportError(error.response?.data?.message || "Failed to create room from this playlist");
+    } finally {
+      setImportingPlaylist(false);
+    }
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080808] text-white">
       <Navbar />
@@ -227,42 +257,7 @@ const LandingPage = () => {
           </div>
 
           <div className="relative z-10 mx-auto max-w-6xl space-y-8">
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.02 }}
-            >
-              <Link
-                to="/pricing"
-                className="group relative block overflow-hidden rounded-[28px] border border-red-400/20 bg-gradient-to-r from-[#140c0c] via-[#22120f] to-[#15100b] p-5 shadow-[0_24px_90px_rgba(249,115,22,0.14)] sm:p-6"
-              >
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-amber-400/10 to-transparent blur-2xl" />
-                <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="max-w-3xl">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-100 animate-pulse">
-                      <span className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_12px_rgba(252,211,77,0.9)]" />
-                      {LIMITED_TIME_PRO_PROMO.badge}
-                    </div>
-                    <h2 className="mt-4 text-2xl font-black leading-tight text-white sm:text-3xl lg:text-[2.15rem]">
-                      {LIMITED_TIME_PRO_PROMO.heading}
-                    </h2>
-                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
-                      {LIMITED_TIME_PRO_PROMO.subtext}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
-                    <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/35">
-                      {LIMITED_TIME_PRO_PROMO.previousPriceLabel}
-                    </span>
-                    <span className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-500 to-orange-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-500/25 transition-transform group-hover:scale-[1.02]">
-                      {LIMITED_TIME_PRO_PROMO.ctaLabel}
-                      <Icon.ArrowRight />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
+            
 
             <div className="flex flex-col items-center gap-10 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-14">
               <div className="w-full text-center lg:text-left">
@@ -287,6 +282,44 @@ const LandingPage = () => {
                   PrepTube turns any playlist into a shared learning room with progress tracking, live chat, streaks, private notes, and room invites all in one tab.
                 </motion.p>
 
+                <motion.form
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.13 }}
+                  onSubmit={handleHeroImport}
+                  className="mx-auto mt-6 max-w-2xl rounded-[28px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:mx-0"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                      type="url"
+                      value={playlistUrl}
+                      onChange={(event) => setPlaylistUrl(event.target.value)}
+                      placeholder="Paste YouTube playlist URL"
+                      className="w-full flex-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-medium text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-red-500/40 sm:text-base"
+                    />
+                    <button
+                      type="submit"
+                      disabled={importingPlaylist || !playlistUrl.trim()}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 px-5 py-3 text-sm font-semibold shadow-lg shadow-red-500/20 transition-opacity disabled:opacity-50 sm:text-base"
+                    >
+                      {importingPlaylist ? (
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      ) : user ? (
+                        <Icon.Import />
+                      ) : (
+                        <Icon.Zap />
+                      )}
+                      {importingPlaylist ? "Creating room..." : user ? "Create room" : "Login to create"}
+                    </button>
+                  </div>
+                 
+                  {importError ? (
+                    <p className="mt-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-left text-xs font-medium text-red-200 sm:text-sm">
+                      {importError}
+                    </p>
+                  ) : null}
+                </motion.form>
+
                 <motion.div
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -308,10 +341,10 @@ const LandingPage = () => {
                     )}
                   </Link>
                   <Link
-                    to="/explore"
+                    to="/public"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 active:bg-white/15 sm:w-auto sm:text-base"
                   >
-                    <Icon.Compass /> Explore Courses
+                    <Icon.Compass /> Public Courses
                   </Link>
                 </motion.div>
 

@@ -25,9 +25,9 @@ export const faqs = [
       "Streaks are tracked per user and per playlist. PrepTube logs active study time from the workspace, and a day counts toward the streak once you reach at least 30 minutes on that playlist for that date in the Asia/Kolkata timezone.",
   },
   {
-    question: "How do public playlists and Explore work?",
+    question: "How do public playlists and the Public feed work?",
     answer:
-      "The room owner can mark a playlist as public after selecting at least one topic. Public rooms appear in Explore and can be filtered by topic. Users still join the room before entering the full workspace.",
+      "The room owner can mark a playlist as public after selecting at least one topic. Public rooms appear in the Public feed and can be filtered by topic. Users still join the room before entering the full workspace.",
   },
   {
     question: "What if I do not renew my premium after 1 month?",

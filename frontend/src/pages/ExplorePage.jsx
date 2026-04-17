@@ -9,7 +9,7 @@ import { setPageMeta } from "../utils/meta";
 import { buildPlaylistTopicOptions, dedupePlaylistTopics } from "../utils/playlistTopics";
 import { IC } from "./Icons";
 
-const ExplorePage = () => {
+const PublicPage = () => {
   const currentUser = getStoredUser();
   const isAdmin = currentUser?.role === "admin";
   const [playlists, setPlaylists] = useState([]);
@@ -22,7 +22,7 @@ const ExplorePage = () => {
 
   useEffect(() => {
     setPageMeta({
-      title: "Explore Public Courses | PrepTube",
+      title: "Public Courses | PrepTube",
       description: "Browse public collaborative playlists on PrepTube and join active learning rooms.",
     });
   }, []);
@@ -30,7 +30,7 @@ const ExplorePage = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await axios.get(`${API_URL}/playlists/explore`);
+        const res = await axios.get(`${API_URL}/playlists/public`);
         const nextPlaylists = res.data.playlists || [];
         setPlaylists(nextPlaylists);
         setAvailableTopics(
@@ -65,7 +65,7 @@ const ExplorePage = () => {
   };
 
   const handleJoin = async (playlistId) => {
-    if (!getToken()) { requireAuthRedirect(navigate, "/explore"); return; }
+    if (!getToken()) { requireAuthRedirect(navigate, "/public"); return; }
     try {
       setUpgradePrompt("");
       const res = await axios.post(`${API_URL}/playlists/join`, { playlistId }, { headers: authHeaders() });
@@ -81,7 +81,7 @@ const ExplorePage = () => {
   };
 
   const handleOpen = (playlistId) => {
-    if (!getToken()) { requireAuthRedirect(navigate, "/explore"); return; }
+    if (!getToken()) { requireAuthRedirect(navigate, "/public"); return; }
     navigate(`/video/${playlistId}`);
   };
 
@@ -92,7 +92,7 @@ const ExplorePage = () => {
 
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2 text-red-300/60 text-xs uppercase tracking-[0.18em] font-medium">
-            <IC.Compass className="w-3.5 h-3.5" /> Explore
+            <IC.Compass className="w-3.5 h-3.5" /> Public
           </div>
           <h1 className="text-3xl sm:text-4xl font-black leading-tight">Public course rooms from the community</h1>
           <p className="text-white/55 text-sm sm:text-base font-medium max-w-2xl">
@@ -151,7 +151,7 @@ const ExplorePage = () => {
         {loading ? (
           <div className="flex items-center gap-3 text-white/40 text-sm font-medium">
             <span className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            Loading explore feed...
+            Loading public feed...
           </div>
         ) : filteredPlaylists.length === 0 ? (
           <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] p-12 sm:p-16 text-center">
@@ -229,4 +229,4 @@ const ExplorePage = () => {
   );
 };
 
-export default ExplorePage;
+export default PublicPage;

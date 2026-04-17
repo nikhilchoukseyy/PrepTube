@@ -30,7 +30,7 @@ const Navbar = () => {
 
   const links = [
     { label: "Courses", to: isLoggedIn ? "/courses" : "/login?redirect=/courses" },
-    { label: "Explore", to: "/explore" },
+    { label: "Public", to: "/public" },
     { label: "FAQs", to: "/faqs" },
     { label: "Pricing", to: "/pricing" },
   ];

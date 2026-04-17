@@ -409,7 +409,7 @@ const VideoPage = () => {
     setDeletingPlaylist(true);
     try {
       await axios.delete(`${API_URL}/playlists/${id}`, { headers: authHeaders() });
-      navigate("/explore");
+      navigate("/public");
     } catch (err) {
       setError(err.response?.data?.message || "Unable to delete playlist");
     } finally {
@@ -1174,7 +1174,7 @@ const VideoPage = () => {
                         {playlist.isPublic ? <IC.Globe className="w-4 h-4 text-emerald-400" /> : <IC.Lock className="w-4 h-4 text-white/40" />}
                         Visibility and topics
                       </h3>
-                      <p className="text-xs text-white/40 mt-1 font-medium">Public rooms show up in Explore and require at least one topic.</p>
+                      <p className="text-xs text-white/40 mt-1 font-medium">Public rooms show up in the Public feed and require at least one topic.</p>
                     </div>
                     {isOwner ? (
                       <button
@@ -1245,8 +1245,8 @@ const VideoPage = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <p className="text-[11px] text-white/35 font-medium">
                         {playlist.isPublic
-                          ? "These topics are used in Explore filters right now."
-                          : `Choose topics now so the playlist is ready for Explore later. ${TOPIC_LIMIT_HINT}.`}
+                          ? "These topics are used in Public filters right now."
+                          : `Choose topics now so the playlist is ready for the Public feed later. ${TOPIC_LIMIT_HINT}.`}
                       </p>
                       {isOwner && (
                         <button
