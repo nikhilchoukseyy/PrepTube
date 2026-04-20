@@ -309,7 +309,7 @@ const LandingPage = () => {
                       ) : (
                         <Icon.Zap />
                       )}
-                      {importingPlaylist ? "Creating room..." : user ? "Create room" : "Login to create"}
+                      {importingPlaylist ? "Creating room..." :"Create room" }
                     </button>
                   </div>
                  
@@ -525,7 +525,7 @@ const LandingPage = () => {
                 className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 sm:p-6"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/12 text-amber-200">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/12 text-amber-200 ">
                     <Icon.MessageSquare />
                   </div>
                   <div>
