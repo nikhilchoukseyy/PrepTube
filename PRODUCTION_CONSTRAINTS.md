@@ -196,8 +196,7 @@ Examples:
 | 500 videos | `21` units |
 
 This is efficient, but high import volume can still exhaust quota quickly if many users import many playlists in the same day.
-
-### 5.4 Payments
+###  5.4 Payments
 
 Current state:
 
